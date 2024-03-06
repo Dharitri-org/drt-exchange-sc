@@ -1,0 +1,15 @@
+[package]
+name = "pause-all-meta"
+version = "0.0.0"
+edition = "2021"
+publish = false
+authors = ["Dharitri <contact@dharitri.com>"]
+
+[dev-dependencies]
+
+[dependencies.pause-all]
+path = ".."
+
+[dependencies.dharitri-sc-meta]
+version = "0.13.4"
+default-features = false
