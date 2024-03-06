@@ -50,11 +50,11 @@ path = "../../../traits/mergeable"
 path = "../../../traits/fixed-supply-token"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.dharitri-sc-modules]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"

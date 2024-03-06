@@ -14,5 +14,5 @@ path = "../../common_structs"
 path = "../../common_errors"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]

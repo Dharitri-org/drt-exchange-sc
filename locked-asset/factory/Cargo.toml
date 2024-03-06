@@ -26,11 +26,11 @@ path = "../../common/modules/token_merge_helper"
 path = "../energy-factory"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.dharitri-sc-modules]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dependencies.arrayvec]
 version = "0.7.1"
@@ -49,4 +49,4 @@ hex = "0.4"
 path = "../simple-lock"
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"

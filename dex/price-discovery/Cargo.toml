@@ -12,11 +12,11 @@ path = "src/lib.rs"
 hex-literal = "0.3.1"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.dharitri-sc-modules]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dependencies.locking_module]
 path = "../../common/modules/locking_module"
@@ -30,4 +30,4 @@ hex = "0.4"
 path = "../../locked-asset/simple-lock"
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"

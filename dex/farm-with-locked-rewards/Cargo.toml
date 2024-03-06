@@ -75,17 +75,17 @@ path = "../../locked-asset/energy-factory"
 path = "../../energy-integration/common-modules/energy-query"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.dharitri-sc-modules]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dev-dependencies]
 num-bigint = "0.4.2"
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dev-dependencies.simple-lock]
 path = "../../locked-asset/simple-lock"
