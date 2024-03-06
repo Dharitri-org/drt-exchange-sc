@@ -45,11 +45,11 @@ path = "../../common/traits/mergeable"
 path = "../../common/traits/fixed-supply-token"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.dharitri-sc-modules]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dependencies.energy-factory]
 path = "../energy-factory"
@@ -69,7 +69,7 @@ num-traits = "0.2"
 hex = "0.4"
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"
 
 [dev-dependencies.pausable]
 path = "../../common/modules/pausable"

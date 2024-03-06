@@ -12,7 +12,7 @@ path = "src/pair.rs"
 path = "../../common/common_errors"
 
 [dependencies.dharitri-sc]
-version = "=0.13.4"
+version = "=0.13.6"
 features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.itertools]
@@ -20,4 +20,4 @@ version = "0.10.1"
 default-features = false
 
 [dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.4"
+version = "=0.13.6"
