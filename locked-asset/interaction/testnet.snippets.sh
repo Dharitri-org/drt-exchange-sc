@@ -13,7 +13,7 @@ DEFAULT_GAS_LIMIT=50000000
 
 ##### ENDPOINTS #####
 
-#params://
+#params:
 #   $1 = User Address
 #   $2 = Token id,
 #   $3 = Token nonce in hex,
