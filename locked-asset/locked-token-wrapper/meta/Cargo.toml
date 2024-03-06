@@ -1,0 +1,15 @@
+[package]
+name = "locked-token-wrapper-meta"
+version = "0.0.0"
+edition = "2021"
+publish = false
+authors = ["Dharitri <contact@dharitri.com>"]
+
+[dev-dependencies]
+
+[dependencies.locked-token-wrapper]
+path = ".."
+
+[dependencies.dharitri-sc-meta]
+version = "0.13.4"
+default-features = false

@@ -1,0 +1,15 @@
+[package]
+name = "pausable"
+version = "0.0.0"
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+edition = "2021"
+
+[lib]
+path = "src/pausable.rs"
+
+[dependencies.permissions_module]
+path = "../permissions_module"
+
+[dependencies.dharitri-sc]
+version = "=0.13.4"
+features = ["dct-token-payment-legacy-decode"]

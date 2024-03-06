@@ -1,0 +1,28 @@
+[package]
+name = "metabonding-staking"
+version = "0.0.0"
+authors = ["Dharitri <contact@dharitri.com>"]
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies.dharitri-sc]
+version = "=0.13.4"
+features = ["dct-token-payment-legacy-decode"]
+
+[dependencies.dharitri-sc-modules]
+version = "=0.13.4"
+
+[dependencies.factory]
+path = "../../locked-asset/factory"
+
+[dev-dependencies]
+num-bigint = "0.4.2"
+
+[dev-dependencies.dharitri-sc-scenario]
+version = "=0.13.4"
+
+[dev-dependencies.common_structs]
+path = "../../common/common_structs"

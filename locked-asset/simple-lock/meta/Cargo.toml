@@ -1,0 +1,13 @@
+[package]
+name = "simple-lock-meta"
+version = "0.0.0"
+edition = "2021"
+publish = false
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+
+[dependencies.simple-lock]
+path = ".."
+
+[dependencies.dharitri-sc-meta]
+version = "0.13.4"
+default-features = false
