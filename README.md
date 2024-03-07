@@ -22,7 +22,7 @@ This document is a brief description of the Smart Contracts. It covers the basic
 
 Other Smart Contracts that are part of xExchange, but are not part of this repository:
 
-- [Moax wrapping](https://github.com/dharitri/mx-sdk-rs/tree/master/contracts/core/wmoax-swap) used for swapping MOAX to an DCT and reversed with an exchange rate of 1:1.
+- [Moax wrapping](https://github.com/dharitri/drt-sdk-rs/tree/master/contracts/core/wmoax-swap) used for swapping MOAX to an DCT and reversed with an exchange rate of 1:1.
 
 ## DEX Contracts
 
