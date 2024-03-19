@@ -1,10 +1,10 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
+use crate::claim_rewards_context::dharitri_codec::TopEncode;
 use common_errors::{ERROR_BAD_PAYMENTS, ERROR_EMPTY_PAYMENTS};
 use common_structs::PaymentAttributesPair;
-use dharitri_sc::api::BlockchainApi;
-use dharitri_sc::contract_base::BlockchainWrapper;
+use dharitri_wasm::contract_base::BlockchainWrapper;
 
 pub struct ClaimRewardsContext<M, T>
 where

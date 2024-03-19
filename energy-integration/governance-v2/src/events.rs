@@ -1,9 +1,9 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::proposal::{GovernanceProposal, ProposalId};
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     #[event("proposalCreated")]
     fn proposal_created_event(
@@ -11,7 +11,7 @@ pub trait EventsModule {
         #[indexed] proposal_id: usize,
         #[indexed] proposer: &ManagedAddress,
         #[indexed] start_block: u64,
-        #[indexed] proposal: &GovernanceProposal<Self::Api>,
+        proposal: &GovernanceProposal<Self::Api>,
     );
 
     #[event("upVoteCast")]
@@ -19,8 +19,7 @@ pub trait EventsModule {
         &self,
         #[indexed] up_voter: &ManagedAddress,
         #[indexed] proposal_id: ProposalId,
-        #[indexed] voting_power: &BigUint,
-        #[indexed] user_quorum: &BigUint,
+        nr_votes: &BigUint,
     );
 
     #[event("downVoteCast")]
@@ -28,8 +27,7 @@ pub trait EventsModule {
         &self,
         #[indexed] down_voter: &ManagedAddress,
         #[indexed] proposal_id: ProposalId,
-        #[indexed] voting_power: &BigUint,
-        #[indexed] user_quorum: &BigUint,
+        nr_downvotes: &BigUint,
     );
 
     #[event("downVetoVoteCast")]
@@ -37,8 +35,7 @@ pub trait EventsModule {
         &self,
         #[indexed] down_veto_voter: &ManagedAddress,
         #[indexed] proposal_id: ProposalId,
-        #[indexed] voting_power: &BigUint,
-        #[indexed] user_quorum: &BigUint,
+        nr_downvotes: &BigUint,
     );
 
     #[event("abstainVoteCast")]
@@ -46,13 +43,35 @@ pub trait EventsModule {
         &self,
         #[indexed] abstain_voter: &ManagedAddress,
         #[indexed] proposal_id: ProposalId,
-        #[indexed] voting_power: &BigUint,
-        #[indexed] user_quorum: &BigUint,
+        nr_downvotes: &BigUint,
     );
 
     #[event("proposalCanceled")]
     fn proposal_canceled_event(&self, #[indexed] proposal_id: ProposalId);
 
-    #[event("proposalWithdrawAfterDefeated")]
-    fn proposal_withdraw_after_defeated_event(&self, #[indexed] proposal_id: ProposalId);
+    #[event("proposalQueued")]
+    fn proposal_queued_event(
+        &self,
+        #[indexed] proposal_id: ProposalId,
+        #[indexed] queued_block: u64,
+    );
+
+    #[event("proposalExecuted")]
+    fn proposal_executed_event(&self, #[indexed] proposal_id: ProposalId);
+
+    #[event("userDeposit")]
+    fn user_deposit_event(
+        &self,
+        #[indexed] address: &ManagedAddress,
+        #[indexed] proposal_id: ProposalId,
+        payment: &DctTokenPayment,
+    );
+
+    #[event("userClaimDepositedTokens")]
+    fn user_claim_deposited_tokens_event(
+        &self,
+        #[indexed] address: &ManagedAddress,
+        #[indexed] proposal_id: ProposalId,
+        payments: &ManagedVec<DctTokenPayment>,
+    );
 }

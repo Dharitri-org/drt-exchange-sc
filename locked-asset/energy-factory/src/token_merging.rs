@@ -1,7 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
-
-use dharitri_sc::api::BlockchainApi;
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use common_structs::PaymentsVec;
 use math::weighted_average_round_up;
@@ -52,13 +50,13 @@ impl<M: ManagedTypeApi + BlockchainApi> Mergeable<M> for LockedAmountWeightAttri
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait TokenMergingModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + crate::penalty::LocalPenaltyModule
     + crate::energy::EnergyModule
     + crate::events::EventsModule

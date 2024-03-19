@@ -3,10 +3,10 @@ use crate::{
     vote::{VoteNFTAttributes, VoteType},
 };
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait Events {
     fn emit_propose_event(
         &self,

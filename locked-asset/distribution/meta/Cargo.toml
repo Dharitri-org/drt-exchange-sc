@@ -1,13 +1,17 @@
 [package]
 name = "distribution-abi"
+
 version = "0.0.0"
-authors = ["Dharitri <contact@dharitri.com>"]
-edition = "2021"
+authors = [ "you",]
+edition = "2018"
 publish = false
 
 [dependencies.distribution]
 path = ".."
 
-[dependencies.dharitri-sc-meta]
-version = "0.13.6"
-default-features = false
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
+
+
+[dependencies.dharitri-wasm-debug]
+version = "=0.10.6"

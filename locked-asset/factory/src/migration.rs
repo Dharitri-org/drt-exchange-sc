@@ -1,9 +1,9 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_structs::UnlockEpochAmountPairs;
 use energy_factory::migration::ProxyTrait as _;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LockedTokenMigrationModule:
     crate::locked_asset::LockedAssetModule
     + token_send::TokenSendModule

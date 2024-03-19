@@ -1,8 +1,8 @@
 [package]
 name = "farm"
 version = "0.0.0"
-authors = ["Dharitri <contact@dharitri.com>"]
-edition = "2021"
+authors = [ "you",]
+edition = "2018"
 publish = false
 
 [lib]
@@ -68,21 +68,21 @@ path = "../../energy-integration/common-modules/weekly-rewards-splitting"
 [dependencies.energy-query]
 path = "../../energy-integration/common-modules/energy-query"
 
-[dependencies.dharitri-sc]
-version = "=0.13.6"
-features = ["dct-token-payment-legacy-decode"]
-
-[dependencies.dharitri-sc-modules]
-version = "=0.13.6"
-
-[dev-dependencies]
-num-bigint = "0.4.2"
-
 [dev-dependencies.energy-update]
 path = "../../energy-integration/energy-update"
 
-[dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.6"
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
+features = ["dct-token-payment-legacy-decode",]
+
+[dependencies.dharitri-wasm-modules]
+version = "=0.10.6"
+
+[dev-dependencies.dharitri-wasm-debug]
+version = "=0.10.6"
+
+[dev-dependencies]
+num-bigint = "0.4.2"
 
 [dev-dependencies.energy-factory-mock]
 path = "../../energy-integration/energy-factory-mock"

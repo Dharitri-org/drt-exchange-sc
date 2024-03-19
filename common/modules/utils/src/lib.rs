@@ -1,14 +1,15 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_structs::{PaymentAttributesPair, PaymentsVec};
+use dharitri_wasm::dharitri_codec::TopEncode;
 use fixed_supply_token::FixedSupplyToken;
 use mergeable::Mergeable;
 
 static ERR_EMPTY_PAYMENTS: &[u8] = b"No payments";
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait UtilsModule {
     fn dest_from_optional(&self, opt_destination: OptionalValue<ManagedAddress>) -> ManagedAddress {
         match opt_destination {
@@ -28,11 +29,21 @@ pub trait UtilsModule {
         )
     }
 
+    fn burn_multi_dct(&self, payments: &PaymentsVec<Self::Api>) {
+        for payment in payments {
+            self.send().dct_local_burn(
+                &payment.token_identifier,
+                payment.token_nonce,
+                &payment.amount,
+            );
+        }
+    }
+
     fn get_non_empty_payments(&self) -> PaymentsVec<Self::Api> {
         let payments = self.call_value().all_dct_transfers();
         require!(!payments.is_empty(), ERR_EMPTY_PAYMENTS);
 
-        payments.clone_value()
+        payments
     }
 
     fn pop_first_payment(
@@ -47,10 +58,23 @@ pub trait UtilsModule {
         first_payment
     }
 
+    fn get_token_attributes<T: TopDecode>(
+        &self,
+        token_id: &TokenIdentifier,
+        token_nonce: u64,
+    ) -> T {
+        let own_sc_address = self.blockchain().get_sc_address();
+        let token_data =
+            self.blockchain()
+                .get_dct_token_data(&own_sc_address, token_id, token_nonce);
+
+        token_data.decode_attributes()
+    }
+
     fn get_attributes_as_part_of_fixed_supply<T: FixedSupplyToken<Self::Api> + TopDecode>(
         &self,
         payment: &DctTokenPayment,
-        mapper: &NonFungibleTokenMapper,
+        mapper: &NonFungibleTokenMapper<Self::Api>,
     ) -> T {
         let attr: T = mapper.get_token_attributes(payment.token_nonce);
         attr.into_part(&payment.amount)
@@ -61,7 +85,7 @@ pub trait UtilsModule {
     >(
         &self,
         mut payments: PaymentsVec<Self::Api>,
-        mapper: &NonFungibleTokenMapper,
+        mapper: &NonFungibleTokenMapper<Self::Api>,
     ) -> T {
         let first_payment = self.pop_first_payment(&mut payments);
         let base_attributes: T =
@@ -70,7 +94,7 @@ pub trait UtilsModule {
 
         let output_attributes =
             self.merge_attributes_from_payments(base_attributes, &payments, mapper);
-        self.send().dct_local_burn_multi(&payments);
+        self.burn_multi_dct(&payments);
 
         output_attributes
     }
@@ -81,7 +105,7 @@ pub trait UtilsModule {
         &self,
         mut base_attributes: T,
         payments: &PaymentsVec<Self::Api>,
-        mapper: &NonFungibleTokenMapper,
+        mapper: &NonFungibleTokenMapper<Self::Api>,
     ) -> T {
         for payment in payments {
             let attributes: T = self.get_attributes_as_part_of_fixed_supply(&payment, mapper);
@@ -103,7 +127,7 @@ pub trait UtilsModule {
         &self,
         base_attributes: T,
         payments: &PaymentsVec<Self::Api>,
-        mapper: &NonFungibleTokenMapper,
+        mapper: &NonFungibleTokenMapper<Self::Api>,
     ) -> PaymentAttributesPair<Self::Api, T> {
         let output_attributes =
             self.merge_attributes_from_payments(base_attributes, payments, mapper);
@@ -125,9 +149,5 @@ pub trait UtilsModule {
             !address.is_zero() && self.blockchain().is_smart_contract(address),
             "Invalid SC address"
         );
-    }
-
-    fn require_not_empty_buffer(&self, buffer: &ManagedBuffer) {
-        require!(!buffer.is_empty(), "Empty buffer");
     }
 }

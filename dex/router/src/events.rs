@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 #[derive(TypeAbi, TopEncode)]
 pub struct CreatePairEvent<M: ManagedTypeApi> {
@@ -22,7 +22,7 @@ pub struct UserPairSwapEnabledEvent<M: ManagedTypeApi> {
     pair_address: ManagedAddress<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     fn emit_create_pair_event(
         self,

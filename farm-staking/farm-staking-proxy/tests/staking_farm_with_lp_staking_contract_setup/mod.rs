@@ -1,10 +1,8 @@
-#![allow(deprecated)]
-
-use dharitri_sc::storage::mappers::StorageTokenWrapper;
-use dharitri_sc::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
-use dharitri_sc_scenario::{
+use dharitri_wasm::storage::mappers::StorageTokenWrapper;
+use dharitri_wasm::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
+use dharitri_wasm_debug::{
     managed_address, managed_biguint, managed_token_id, rust_biguint,
-    whitebox_legacy::{BlockchainStateWrapper, ContractObjWrapper},
+    testing_framework::{BlockchainStateWrapper, ContractObjWrapper},
     DebugApi,
 };
 
@@ -14,7 +12,6 @@ use farm_staking_config::ConfigModule as _;
 
 use farm_staking::custom_rewards::CustomRewardsModule;
 use farm_staking_proxy::dual_yield_token::DualYieldTokenModule;
-
 use farm_staking_proxy::*;
 use farm_token::FarmTokenModule;
 use pausable::{PausableModule, State};
@@ -45,6 +42,8 @@ where
                 div_const,
                 max_apr,
                 UNBOND_EPOCHS,
+                0,
+                managed_biguint!(0),
                 ManagedAddress::<DebugApi>::zero(),
                 MultiValueEncoded::new(),
             );
@@ -119,7 +118,6 @@ where
     b_mock
         .execute_tx(owner_addr, &proxy_wrapper, &rust_zero, |sc| {
             sc.init(
-                managed_address!(staking_farm_address), // TODO - replace with energy factory address when needed
                 managed_address!(lp_farm_address),
                 managed_address!(staking_farm_address),
                 managed_address!(pair_address),

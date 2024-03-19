@@ -1,26 +1,28 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::energy::Energy;
-use common_structs::{Epoch, UnlockEpochAmountPairs};
+use common_structs::{
+    Epoch, InitialOldLockedTokenAttributes, OldLockedTokenAttributes, UnlockEpochAmountPairs,
+    LOCKED_TOKEN_ACTIVATION_NONCE,
+};
 use math::safe_sub;
 use simple_lock::error_messages::INVALID_PAYMENTS_ERR_MSG;
 use unwrappable::Unwrappable;
 
 const TOKEN_MIGRATION_LOCK_EPOCHS_FACTOR: u64 = 4;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait SimpleLockMigrationModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::token_whitelist::TokenWhitelistModule
     + crate::energy::EnergyModule
     + crate::events::EventsModule
     + crate::lock_options::LockOptionsModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + utils::UtilsModule
-    + legacy_token_decode_module::LegacyTokenDecodeModule
 {
     /// Sets the energy amounts and token amounts for users. Overwrites any existing values.
     /// Expects any number of pairs of (user address, token amount, energy amount).
@@ -75,11 +77,7 @@ pub trait SimpleLockMigrationModule:
         self.require_not_paused();
 
         let caller = self.blockchain().get_caller();
-        let is_smart_contract_address = self.blockchain().is_smart_contract(&caller);
-
-        if !is_smart_contract_address {
-            self.require_old_tokens_energy_was_updated(&caller);
-        }
+        self.require_old_tokens_energy_was_updated(&caller);
 
         let payments = self.get_non_empty_payments();
         let current_epoch = self.blockchain().get_block_epoch();
@@ -93,12 +91,7 @@ pub trait SimpleLockMigrationModule:
                     INVALID_PAYMENTS_ERR_MSG
                 );
 
-                let new_token = self.migrate_single_old_token(
-                    payment,
-                    is_smart_contract_address,
-                    current_epoch,
-                    energy,
-                );
+                let new_token = self.migrate_single_old_token(payment, current_epoch, energy);
                 output_payments.push(new_token);
             }
         });
@@ -111,11 +104,20 @@ pub trait SimpleLockMigrationModule:
     fn migrate_single_old_token(
         &self,
         payment: DctTokenPayment,
-        is_smart_contract_address: bool,
         current_epoch: Epoch,
         energy: &mut Energy<Self::Api>,
     ) -> DctTokenPayment {
-        let attributes = self.decode_legacy_token(&payment.token_identifier, payment.token_nonce);
+        let attributes: OldLockedTokenAttributes<Self::Api> =
+            if payment.token_nonce < LOCKED_TOKEN_ACTIVATION_NONCE {
+                let initial_attributes: InitialOldLockedTokenAttributes<Self::Api> =
+                    self.get_token_attributes(&payment.token_identifier, payment.token_nonce);
+                initial_attributes.migrate_to_new_attributes()
+            } else {
+                let updated_attributes: OldLockedTokenAttributes<Self::Api> =
+                    self.get_token_attributes(&payment.token_identifier, payment.token_nonce);
+                updated_attributes
+            };
+
         self.send().dct_local_burn(
             &payment.token_identifier,
             payment.token_nonce,
@@ -126,20 +128,12 @@ pub trait SimpleLockMigrationModule:
         let new_unlock_epoch = self
             .calculate_new_unlock_epoch_for_old_token(&unlock_epoch_amount_pairs, current_epoch);
         for epoch_amount_pair in unlock_epoch_amount_pairs.pairs {
-            if is_smart_contract_address {
-                energy.add_after_token_lock(
-                    &epoch_amount_pair.amount,
-                    new_unlock_epoch,
-                    current_epoch,
-                );
-            } else {
-                energy.update_after_unlock_epoch_change(
-                    &epoch_amount_pair.amount,
-                    epoch_amount_pair.epoch,
-                    new_unlock_epoch,
-                    current_epoch,
-                );
-            }
+            energy.update_after_unlock_epoch_change(
+                &epoch_amount_pair.amount,
+                epoch_amount_pair.epoch,
+                new_unlock_epoch,
+                current_epoch,
+            );
         }
 
         let base_asset = MoaxOrDctTokenIdentifier::dct(self.base_asset_token_id().get());
@@ -202,5 +196,5 @@ pub trait SimpleLockMigrationModule:
     fn min_migrated_token_locked_period(&self) -> SingleValueMapper<Epoch>;
 
     #[storage_mapper("userUpdatedOldTokensEnergy")]
-    fn user_updated_old_tokens_energy(&self) -> WhitelistMapper<ManagedAddress>;
+    fn user_updated_old_tokens_energy(&self) -> WhitelistMapper<Self::Api, ManagedAddress>;
 }

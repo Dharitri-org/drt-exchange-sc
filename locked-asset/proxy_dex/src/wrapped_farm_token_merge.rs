@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::proxy_common::INVALID_PAYMENTS_ERR_MSG;
 use crate::proxy_common::MIN_MERGE_PAYMENTS;
@@ -9,15 +9,14 @@ use crate::wrapped_farm_attributes::WrappedFarmTokenAttributes;
 
 use fixed_supply_token::FixedSupplyToken;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait WrappedFarmTokenMerge:
     token_merge_helper::TokenMergeHelperModule
     + token_send::TokenSendModule
-    + crate::other_sc_whitelist::OtherScWhitelistModule
+    + crate::sc_whitelist::ScWhitelistModule
     + crate::proxy_common::ProxyCommonModule
     + crate::wrapped_lp_token_merge::WrappedLpTokenMerge
     + utils::UtilsModule
-    + energy_query::EnergyQueryModule
 {
     #[payable("*")]
     #[endpoint(mergeWrappedFarmTokens)]
@@ -35,7 +34,7 @@ pub trait WrappedFarmTokenMerge:
         let wrapped_farm_tokens =
             WrappedFarmToken::new_from_payments(&payments, &wrapped_farm_token_mapper);
 
-        self.send().dct_local_burn_multi(&payments);
+        self.burn_multi_dct(&payments);
 
         let merged_tokens = self
             .merge_wrapped_farm_tokens(&caller, farm_address, wrapped_farm_tokens)
@@ -80,7 +79,9 @@ pub trait WrappedFarmTokenMerge:
             proxy_farming_token.token_nonce,
         );
 
-        let factory_address = self.get_factory_address_for_locked_token(&locked_token_id);
+        let factory_address = self
+            .factory_address_for_locked_token(&locked_token_id)
+            .get();
 
         let wrapped_lp_token_mapper = self.wrapped_lp_token();
         let wrapped_farm_token_mapper = self.wrapped_farm_token();

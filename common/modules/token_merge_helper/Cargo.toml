@@ -1,8 +1,8 @@
 [package]
 name = "token_merge_helper"
 version = "0.0.0"
-authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
-edition = "2021"
+authors = [ "catalin-neagu <catalin.neagu@dharitri.com>",]
+edition = "2018"
 
 [lib]
 path = "src/lib.rs"
@@ -10,6 +10,6 @@ path = "src/lib.rs"
 [dependencies.common_errors]
 path = "../../common_errors"
 
-[dependencies.dharitri-sc]
-version = "=0.13.6"
-features = ["dct-token-payment-legacy-decode"]
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
+features = ["dct-token-payment-legacy-decode",]

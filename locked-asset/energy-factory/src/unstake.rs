@@ -1,11 +1,11 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::energy::Energy;
 
 mod token_unstake_proxy {
-    dharitri_sc::imports!();
+    dharitri_wasm::imports!();
 
-    #[dharitri_sc::proxy]
+    #[dharitri_wasm::proxy]
     pub trait TokenUnstakeProxy {
         #[payable("*")]
         #[endpoint(depositUserTokens)]
@@ -17,14 +17,14 @@ mod token_unstake_proxy {
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait UnstakeModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::token_merging::TokenMergingModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + crate::penalty::LocalPenaltyModule
     + crate::energy::EnergyModule
     + crate::events::EventsModule
@@ -73,7 +73,7 @@ pub trait UnstakeModule:
         let _: IgnoreValue = self
             .token_unstake_sc_proxy_obj(locking_sc_address)
             .deposit_fees()
-            .with_dct_transfer(fees)
+            .add_dct_token_transfer(fees.token_identifier, fees.token_nonce, fees.amount)
             .execute_on_dest_context();
     }
 

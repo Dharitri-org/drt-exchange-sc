@@ -1,15 +1,15 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::{
     error_messages::{CANNOT_UNLOCK_YET_ERR_MSG, NO_PAYMENT_ERR_MSG},
     locked_token::LockedTokenAttributes,
 };
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait BasicLockUnlock:
     crate::locked_token::LockedTokenModule
     + crate::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     fn lock_tokens(
         &self,

@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 #[derive(
     ManagedVecItem,
@@ -18,7 +18,7 @@ pub struct UnstakePair<M: ManagedTypeApi> {
     pub unlocked_tokens: DctTokenPayment<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait TokensPerUserModule {
     #[view(getUnbondEpochs)]
     #[storage_mapper("unbondEpochs")]

@@ -1,8 +1,9 @@
 #![no_std]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
+use crate::dharitri_codec::TopEncode;
 use common_structs::PaymentAttributesPair;
 use contexts::{
     claim_rewards_context::{ClaimRewardsContext, CompoundRewardsContext},
@@ -57,7 +58,7 @@ pub struct CompoundRewardsEvent<M: ManagedTypeApi> {
     created_with_merge: bool,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     fn emit_enter_farm_event<
         'a,

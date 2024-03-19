@@ -1,17 +1,16 @@
 #![allow(dead_code)]
-#![allow(deprecated)]
 
 use common_structs::FarmTokenAttributes;
-use config::{ConfigModule, UserTotalFarmPosition};
-use dharitri_sc::codec::multi_types::OptionalValue;
-use dharitri_sc::{
+use config::ConfigModule;
+use dharitri_wasm::dharitri_codec::multi_types::OptionalValue;
+use dharitri_wasm::{
     storage::mappers::StorageTokenWrapper,
     types::{Address, BigInt, DctLocalRole, MultiValueEncoded},
 };
-use dharitri_sc_scenario::whitebox_legacy::TxTokenTransfer;
-use dharitri_sc_scenario::{
+use dharitri_wasm_debug::tx_mock::TxInputDCT;
+use dharitri_wasm_debug::{
     managed_address, managed_biguint, managed_token_id, rust_biguint,
-    whitebox_legacy::{BlockchainStateWrapper, ContractObjWrapper},
+    testing_framework::{BlockchainStateWrapper, ContractObjWrapper},
     DebugApi,
 };
 
@@ -24,7 +23,6 @@ use farm_boosted_yields::FarmBoostedYieldsModule;
 use farm_token::FarmTokenModule;
 use pausable::{PausableModule, State};
 use sc_whitelist_module::SCWhitelistModule;
-use week_timekeeping::Epoch;
 use weekly_rewards_splitting::update_claim_progress_energy::UpdateClaimProgressEnergyModule;
 
 pub static REWARD_TOKEN_ID: &[u8] = b"REW-123456";
@@ -39,14 +37,6 @@ pub const USER_REWARDS_ENERGY_CONST: u64 = 3;
 pub const USER_REWARDS_FARM_CONST: u64 = 2;
 pub const MIN_ENERGY_AMOUNT_FOR_BOOSTED_YIELDS: u64 = 1;
 pub const MIN_FARM_AMOUNT_FOR_BOOSTED_YIELDS: u64 = 1;
-
-pub struct RawFarmTokenAttributes {
-    pub reward_per_share_bytes: Vec<u8>,
-    pub entering_epoch: Epoch,
-    pub compounded_reward_bytes: Vec<u8>,
-    pub current_farm_amount_bytes: Vec<u8>,
-    pub original_owner_bytes: [u8; 32],
-}
 
 pub struct MultiUserFarmSetup<FarmObjBuilder, EnergyFactoryBuilder, EnergyUpdateObjBuilder>
 where
@@ -279,12 +269,12 @@ where
         let expected_farm_token_nonce = self.last_farm_token_nonce;
 
         let mut payments = Vec::new();
-        payments.push(TxTokenTransfer {
+        payments.push(TxInputDCT {
             token_identifier: FARMING_TOKEN_ID.to_vec(),
             nonce: 0,
             value: rust_biguint!(farming_token_amount),
         });
-        payments.push(TxTokenTransfer {
+        payments.push(TxInputDCT {
             token_identifier: FARM_TOKEN_ID.to_vec(),
             nonce: farm_token_nonce,
             value: rust_biguint!(farm_token_amount),
@@ -322,12 +312,12 @@ where
         let expected_farm_token_nonce = self.last_farm_token_nonce;
         let expected_farm_token_amount = first_token_amount + second_token_amount;
         let mut payments = Vec::new();
-        payments.push(TxTokenTransfer {
+        payments.push(TxInputDCT {
             token_identifier: FARM_TOKEN_ID.to_vec(),
             nonce: first_token_nonce,
             value: rust_biguint!(first_token_amount),
         });
-        payments.push(TxTokenTransfer {
+        payments.push(TxInputDCT {
             token_identifier: FARM_TOKEN_ID.to_vec(),
             nonce: second_token_nonce,
             value: rust_biguint!(second_token_amount),
@@ -335,9 +325,7 @@ where
 
         self.b_mock
             .execute_dct_multi_transfer(user, &self.farm_wrapper, &payments, |sc| {
-                let (out_farm_token, _boosted_rewards) = sc
-                    .merge_farm_tokens_endpoint(OptionalValue::None)
-                    .into_tuple();
+                let out_farm_token = sc.merge_farm_tokens_endpoint(OptionalValue::None);
                 assert_eq!(
                     out_farm_token.token_identifier,
                     managed_token_id!(FARM_TOKEN_ID)
@@ -358,50 +346,12 @@ where
         attributes: FarmTokenAttributes<DebugApi>,
     ) -> u64 {
         let mut result = 0;
-
-        let raw_attributes = RawFarmTokenAttributes {
-            reward_per_share_bytes: attributes
-                .reward_per_share
-                .to_bytes_be()
-                .as_slice()
-                .to_vec(),
-            entering_epoch: attributes.entering_epoch,
-            compounded_reward_bytes: attributes
-                .compounded_reward
-                .to_bytes_be()
-                .as_slice()
-                .to_vec(),
-            current_farm_amount_bytes: attributes
-                .current_farm_amount
-                .to_bytes_be()
-                .as_slice()
-                .to_vec(),
-            original_owner_bytes: attributes.original_owner.to_byte_array(),
-        };
-
         self.b_mock
             .execute_query(&self.farm_wrapper, |sc| {
-                let attributes_managed = FarmTokenAttributes {
-                    reward_per_share: dharitri_sc::types::BigUint::<DebugApi>::from_bytes_be(
-                        &raw_attributes.reward_per_share_bytes,
-                    ),
-                    entering_epoch: raw_attributes.entering_epoch,
-                    compounded_reward: dharitri_sc::types::BigUint::<DebugApi>::from_bytes_be(
-                        &raw_attributes.compounded_reward_bytes,
-                    ),
-                    current_farm_amount: dharitri_sc::types::BigUint::<DebugApi>::from_bytes_be(
-                        &raw_attributes.current_farm_amount_bytes,
-                    ),
-                    original_owner:
-                        dharitri_sc::types::ManagedAddress::<DebugApi>::new_from_bytes(
-                            &raw_attributes.original_owner_bytes,
-                        ),
-                };
-
                 let result_managed = sc.calculate_rewards_for_given_position(
                     managed_address!(user),
                     managed_biguint!(farm_token_amount),
-                    attributes_managed,
+                    attributes,
                 );
                 result = result_managed.to_u64().unwrap();
             })
@@ -451,39 +401,6 @@ where
         result
     }
 
-    pub fn claim_boosted_rewards_for_user(&mut self, owner: &Address, broker: &Address) -> u64 {
-        self.last_farm_token_nonce += 1;
-
-        let mut result = 0;
-        self.b_mock
-            .execute_tx(broker, &self.farm_wrapper, &rust_biguint!(0), |sc| {
-                let reward_payment =
-                    sc.claim_boosted_rewards(OptionalValue::Some(managed_address!(owner)));
-                assert_eq!(
-                    reward_payment.token_identifier,
-                    managed_token_id!(REWARD_TOKEN_ID)
-                );
-                assert_eq!(reward_payment.token_nonce, 0);
-
-                result = reward_payment.amount.to_u64().unwrap();
-            })
-            .assert_ok();
-
-        result
-    }
-
-    pub fn claim_boosted_rewards_for_user_expect_error(
-        &mut self,
-        owner: &Address,
-        broker: &Address,
-    ) {
-        self.b_mock
-            .execute_tx(broker, &self.farm_wrapper, &rust_biguint!(0), |sc| {
-                let _ = sc.claim_boosted_rewards(OptionalValue::Some(managed_address!(owner)));
-            })
-            .assert_error(4, "Cannot claim rewards for this address");
-    }
-
     pub fn claim_rewards_known_proxy(
         &mut self,
         user: &Address,
@@ -527,16 +444,25 @@ where
         result
     }
 
-    pub fn exit_farm(&mut self, user: &Address, farm_token_nonce: u64, exit_farm_amount: u64) {
+    pub fn exit_farm(
+        &mut self,
+        user: &Address,
+        farm_token_nonce: u64,
+        farm_token_amount: u64,
+        exit_farm_amount: u64,
+    ) {
         self.b_mock
             .execute_dct_transfer(
                 user,
                 &self.farm_wrapper,
                 FARM_TOKEN_ID,
                 farm_token_nonce,
-                &rust_biguint!(exit_farm_amount),
+                &rust_biguint!(farm_token_amount),
                 |sc| {
-                    let _ = sc.exit_farm_endpoint(OptionalValue::None);
+                    let _ = sc.exit_farm_endpoint(
+                        managed_biguint!(exit_farm_amount),
+                        OptionalValue::None,
+                    );
                 },
             )
             .assert_ok();
@@ -546,6 +472,7 @@ where
         &mut self,
         user: &Address,
         farm_token_nonce: u64,
+        farm_token_amount: u64,
         exit_farm_amount: u64,
         known_proxy: &Address,
     ) {
@@ -555,24 +482,14 @@ where
                 &self.farm_wrapper,
                 FARM_TOKEN_ID,
                 farm_token_nonce,
-                &rust_biguint!(exit_farm_amount),
+                &rust_biguint!(farm_token_amount),
                 |sc| {
-                    let _ = sc.exit_farm_endpoint(OptionalValue::Some(managed_address!(user)));
+                    let _ = sc.exit_farm_endpoint(
+                        managed_biguint!(exit_farm_amount),
+                        OptionalValue::Some(managed_address!(user)),
+                    );
                 },
             )
-            .assert_ok();
-    }
-
-    pub fn allow_external_claim_rewards(&mut self, user: &Address, allow_external_claim: bool) {
-        self.b_mock
-            .execute_tx(user, &self.farm_wrapper, &rust_biguint!(0), |sc| {
-                sc.user_total_farm_position(&managed_address!(user)).update(
-                    |user_total_farm_position| {
-                        user_total_farm_position.allow_external_claim_boosted_rewards =
-                            allow_external_claim;
-                    },
-                );
-            })
             .assert_ok();
     }
 
@@ -647,47 +564,6 @@ where
             .execute_query(&self.farm_wrapper, |sc| {
                 let result_managed = sc.undistributed_boosted_rewards().get();
                 assert_eq!(result_managed, managed_biguint!(expected_amount));
-            })
-            .assert_ok();
-    }
-
-    pub fn check_farm_token_supply(&mut self, expected_farm_token_supply: u64) {
-        let b_mock = &mut self.b_mock;
-        b_mock
-            .execute_query(&self.farm_wrapper, |sc| {
-                let actual_farm_supply = sc.farm_token_supply().get();
-                assert_eq!(
-                    managed_biguint!(expected_farm_token_supply),
-                    actual_farm_supply
-                );
-            })
-            .assert_ok();
-    }
-
-    pub fn set_user_total_farm_position(&mut self, user_addr: &Address, new_farm_position: u64) {
-        self.b_mock
-            .execute_tx(&self.owner, &self.farm_wrapper, &rust_biguint!(0), |sc| {
-                let user_farm_position = UserTotalFarmPosition {
-                    total_farm_position: managed_biguint!(new_farm_position),
-                    ..Default::default()
-                };
-                sc.user_total_farm_position(&managed_address!(user_addr))
-                    .set(user_farm_position);
-            })
-            .assert_ok();
-    }
-
-    pub fn check_user_total_farm_position(&mut self, user_addr: &Address, expected_amount: u64) {
-        self.b_mock
-            .execute_query(&self.farm_wrapper, |sc| {
-                let user_total_farm_position_mapper =
-                    sc.user_total_farm_position(&managed_address!(user_addr));
-                if expected_amount > 0 && !user_total_farm_position_mapper.is_empty() {
-                    assert_eq!(
-                        managed_biguint!(expected_amount),
-                        user_total_farm_position_mapper.get().total_farm_position
-                    );
-                }
             })
             .assert_ok();
     }

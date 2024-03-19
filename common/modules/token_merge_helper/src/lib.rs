@@ -1,7 +1,7 @@
 #![no_std]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use common_errors::ERROR_ZERO_AMOUNT;
 
@@ -16,7 +16,7 @@ pub enum WeightedAverageType {
     Ceil,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait TokenMergeHelperModule {
     fn weighted_average(
         &self,

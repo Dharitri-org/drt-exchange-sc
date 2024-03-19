@@ -2,8 +2,8 @@ use common_structs::Nonce;
 
 use crate::wrapped_lp_attributes::WrappedLpTokenAttributes;
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 pub static INVALID_PAYMENTS_ERR_MSG: &[u8] = b"Invalid payments";
 pub const MIN_MERGE_PAYMENTS: usize = 2;
@@ -17,15 +17,16 @@ pub struct BaseAssetOtherTokenRefPair<'a, M: ManagedTypeApi> {
     pub other_token_ref: &'a DctTokenPayment<M>,
 }
 
-#[dharitri_sc::module]
-pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
+#[dharitri_wasm::module]
+pub trait ProxyCommonModule {
     fn require_exactly_one_locked<'a>(
         &self,
         first_payment: &'a DctTokenPayment,
         second_payment: &'a DctTokenPayment,
     ) -> LockedUnlockedTokenRefPair<'a, Self::Api> {
-        let first_is_locked = self.is_locked_token(&first_payment.token_identifier);
-        let second_is_locked = self.is_locked_token(&second_payment.token_identifier);
+        let token_mapper = self.locked_token_ids();
+        let first_is_locked = token_mapper.contains(&first_payment.token_identifier);
+        let second_is_locked = token_mapper.contains(&second_payment.token_identifier);
 
         if first_is_locked {
             require!(!second_is_locked, INVALID_PAYMENTS_ERR_MSG);
@@ -49,7 +50,7 @@ pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
         first_payment: &'a DctTokenPayment,
         second_payment: &'a DctTokenPayment,
     ) -> BaseAssetOtherTokenRefPair<'a, Self::Api> {
-        let base_asset_token_id = self.get_base_token_id();
+        let base_asset_token_id = self.asset_token().get_token_id();
         let is_first_token = first_payment.token_identifier == base_asset_token_id;
         let is_second_token = second_payment.token_identifier == base_asset_token_id;
 
@@ -71,8 +72,8 @@ pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
     }
 
     fn get_underlying_token(&self, token_id: TokenIdentifier) -> TokenIdentifier {
-        if self.is_locked_token(&token_id) {
-            self.get_base_token_id()
+        if self.locked_token_ids().contains(&token_id) {
+            self.asset_token().get_token_id()
         } else {
             token_id
         }
@@ -83,7 +84,7 @@ pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
         token_id: TokenIdentifier,
         token_nonce: Nonce,
     ) -> TokenIdentifier {
-        if self.is_locked_token(&token_id) {
+        if self.locked_token_ids().contains(&token_id) {
             return token_id;
         }
 
@@ -95,30 +96,8 @@ pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
         attributes.locked_tokens.token_identifier
     }
 
-    fn is_locked_token(&self, token_id: &TokenIdentifier) -> bool {
-        let new_locked_token_id = self.get_locked_token_id();
-        if token_id == &new_locked_token_id {
-            return true;
-        }
-
-        let old_locked_token_id = self.old_locked_token_id().get();
-        token_id == &old_locked_token_id
-    }
-
-    fn get_factory_address_for_locked_token(&self, token_id: &TokenIdentifier) -> ManagedAddress {
-        let new_locked_token_id = self.get_locked_token_id();
-        if token_id == &new_locked_token_id {
-            return self.energy_factory_address().get();
-        }
-
-        let old_locked_token_id = self.old_locked_token_id().get();
-        require!(token_id == &old_locked_token_id, "Invalid locked token ID");
-
-        self.old_factory_address().get()
-    }
-
     fn burn_if_base_asset(&self, tokens: &DctTokenPayment) {
-        let asset_token_id = self.get_base_token_id();
+        let asset_token_id = self.asset_token().get_token_id();
         if tokens.token_identifier == asset_token_id {
             self.send()
                 .dct_local_burn(&tokens.token_identifier, 0, &tokens.amount);
@@ -126,34 +105,24 @@ pub trait ProxyCommonModule: energy_query::EnergyQueryModule {
     }
 
     #[view(getAssetTokenId)]
-    fn get_asset_token_id_view(&self) -> TokenIdentifier {
-        self.get_base_token_id()
-    }
+    #[storage_mapper("assetTokenId")]
+    fn asset_token(&self) -> FungibleTokenMapper<Self::Api>;
 
     #[view(getLockedTokenIds)]
-    fn get_locked_token_ids_view(&self) -> MultiValueEncoded<TokenIdentifier> {
-        let new_token_id = self.get_locked_token_id();
-        let old_token_id = self.old_locked_token_id().get();
-        let mut results = MultiValueEncoded::new();
-        results.push(new_token_id);
-        results.push(old_token_id);
+    #[storage_mapper("lockedTokenIds")]
+    fn locked_token_ids(&self) -> UnorderedSetMapper<TokenIdentifier>;
 
-        results
-    }
-
-    #[view(getOldLockedTokenId)]
-    #[storage_mapper("oldLockedTokenId")]
-    fn old_locked_token_id(&self) -> SingleValueMapper<TokenIdentifier>;
-
-    #[view(getOldFactoryAddress)]
-    #[storage_mapper("oldFactoryAddress")]
-    fn old_factory_address(&self) -> SingleValueMapper<ManagedAddress>;
+    #[storage_mapper("factoryAddressForLockedToken")]
+    fn factory_address_for_locked_token(
+        &self,
+        locked_token_id: &TokenIdentifier,
+    ) -> SingleValueMapper<ManagedAddress>;
 
     #[view(getWrappedLpTokenId)]
     #[storage_mapper("wrappedLpTokenId")]
-    fn wrapped_lp_token(&self) -> NonFungibleTokenMapper;
+    fn wrapped_lp_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 
     #[view(getWrappedFarmTokenId)]
     #[storage_mapper("wrappedFarmTokenId")]
-    fn wrapped_farm_token(&self) -> NonFungibleTokenMapper;
+    fn wrapped_farm_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 }

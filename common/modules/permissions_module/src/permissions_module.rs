@@ -6,9 +6,9 @@ use common_errors::ERROR_PERMISSION_DENIED;
 
 pub use permissions::Permissions;
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait PermissionsModule {
     #[endpoint(addAdmin)]
     fn add_admin_endpoint(&self, address: ManagedAddress) {
@@ -54,7 +54,7 @@ pub trait PermissionsModule {
         permissions: Permissions,
     ) {
         for address in addresses {
-            self.add_permissions(address, permissions.clone());
+            self.add_permissions(address, permissions);
         }
     }
 

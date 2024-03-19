@@ -1,24 +1,21 @@
 [package]
 name = "locked-token-wrapper"
 version = "0.0.0"
-authors = ["Dharitri <contact@dharitri.com>"]
-edition = "2021"
+authors = [ "you",]
+edition = "2018"
 publish = false
 
 [lib]
 path = "src/lib.rs"
 
-[dependencies.dharitri-sc]
-version = "=0.13.6"
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
 
-[dependencies.dharitri-sc-modules]
-version = "=0.13.6"
+[dependencies.dharitri-wasm-modules]
+version = "=0.10.6"
 
 [dependencies.utils]
 path = "../../common/modules/utils"
-
-[dependencies.legacy_token_decode_module]
-path = "../../common/modules/legacy_token_decode_module"
 
 [dependencies.simple-lock]
 path = "../simple-lock"
@@ -38,10 +35,10 @@ path = "../../energy-integration/common-modules/energy-query"
 [dependencies.common_structs]
 path = "../../common/common_structs"
 
+[dev-dependencies.dharitri-wasm-debug]
+version = "=0.10.6"
+
 [dev-dependencies]
 num-bigint = "0.4.2"
 num-traits = "0.2"
 hex = "0.4"
-
-[dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.6"

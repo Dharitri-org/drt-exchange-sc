@@ -1,9 +1,11 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use core::ops::Deref;
 
 use unwrappable::Unwrappable;
+
+use crate::dharitri_codec::TopEncode;
 
 static NOT_ENOUGH_RESULTS_ERR_MSG: &[u8] = b"Not enough results";
 const FIRST_VEC_INDEX: usize = 0;

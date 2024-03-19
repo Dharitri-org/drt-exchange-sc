@@ -4,8 +4,8 @@
 #![feature(trait_alias)]
 #![feature(associated_type_defaults)]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 pub mod base_farm_init;
 pub mod base_farm_validation;
@@ -15,7 +15,7 @@ pub mod compound_rewards;
 pub mod enter_farm;
 pub mod exit_farm;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait FarmBaseImpl:
     rewards::RewardsModule
     + config::ConfigModule
@@ -24,7 +24,7 @@ pub trait FarmBaseImpl:
     + pausable::PausableModule
     + permissions_module::PermissionsModule
     + events::EventsModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + base_farm_init::BaseFarmInitModule
     + base_farm_validation::BaseFarmValidationModule
     + enter_farm::BaseEnterFarmModule

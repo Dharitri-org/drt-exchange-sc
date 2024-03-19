@@ -1,11 +1,9 @@
-#![allow(deprecated)]
-
-use dharitri_sc::codec::multi_types::{MultiValue2, OptionalValue};
-use dharitri_sc::types::MultiValueEncoded;
-use dharitri_sc::types::{Address, DctLocalRole, DctTokenPayment, ManagedVec};
-use dharitri_sc_scenario::{
+use dharitri_wasm::dharitri_codec::multi_types::{MultiValue2, OptionalValue};
+use dharitri_wasm::types::MultiValueEncoded;
+use dharitri_wasm::types::{Address, DctLocalRole, DctTokenPayment, ManagedVec};
+use dharitri_wasm_debug::{
     managed_address, managed_biguint, managed_buffer, managed_token_id, rust_biguint,
-    whitebox_legacy::*, DebugApi,
+    testing_framework::*, DebugApi,
 };
 
 use governance::config::*;

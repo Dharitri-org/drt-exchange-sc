@@ -1,10 +1,10 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use farm::ProxyTrait as _;
 
 const DIVISION_SAFETY_CONST: u64 = 1_000_000_000_000_000_000;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait FarmDeployModule {
     #[endpoint(deployFarm)]
     fn deploy_farm(
@@ -20,7 +20,7 @@ pub trait FarmDeployModule {
 
         let farm_template = self.farm_template_address().get();
         let code_metadata =
-            CodeMetadata::PAYABLE_BY_SC | CodeMetadata::READABLE | CodeMetadata::UPGRADEABLE;
+            CodeMetadata::PAYABLE_BY_SC & CodeMetadata::READABLE & CodeMetadata::UPGRADEABLE;
         let (new_farm_address, ()) = self
             .farm_deploy_proxy()
             .init(
@@ -57,7 +57,7 @@ pub trait FarmDeployModule {
             .with_gas_limit(gas_left);
 
         for arg in args {
-            contract_call.push_raw_argument(arg);
+            contract_call.push_arg_managed_buffer(arg);
         }
         let _: IgnoreValue = contract_call.execute_on_dest_context();
     }

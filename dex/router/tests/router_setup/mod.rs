@@ -1,9 +1,9 @@
-use dharitri_sc::codec::multi_types::{MultiValue4, OptionalValue};
-use dharitri_sc::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
-use dharitri_sc_scenario::whitebox_legacy::TxTokenTransfer;
-use dharitri_sc_scenario::{
+use dharitri_wasm::dharitri_codec::multi_types::{MultiValue4, OptionalValue};
+use dharitri_wasm::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
+use dharitri_wasm_debug::tx_mock::TxInputDCT;
+use dharitri_wasm_debug::{
     managed_address, managed_biguint, managed_buffer, managed_token_id, rust_biguint,
-    whitebox_legacy::*, DebugApi,
+    testing_framework::*, DebugApi,
 };
 
 pub const PAIR_WASM_PATH: &str = "pair/output/pair.wasm";
@@ -28,7 +28,6 @@ pub const USER_CUSTOM_TOKEN_BALANCE: u64 = 1_000_000_000;
 pub const USER_USDC_BALANCE: u64 = 1_000_000;
 
 use pair::config::*;
-use pair::pair_actions::add_liq::AddLiquidityModule;
 use pair::*;
 use pausable::{PausableModule, State};
 use router::factory::*;
@@ -198,12 +197,12 @@ where
 
     pub fn add_liquidity(&mut self) {
         let payments = vec![
-            TxTokenTransfer {
+            TxInputDCT {
                 token_identifier: WMOAX_TOKEN_ID.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(ADD_LIQUIDITY_TOKENS),
             },
-            TxTokenTransfer {
+            TxInputDCT {
                 token_identifier: MEX_TOKEN_ID.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(ADD_LIQUIDITY_TOKENS),
@@ -225,12 +224,12 @@ where
             .assert_ok();
 
         let payments = vec![
-            TxTokenTransfer {
+            TxInputDCT {
                 token_identifier: WMOAX_TOKEN_ID.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(ADD_LIQUIDITY_TOKENS),
             },
-            TxTokenTransfer {
+            TxInputDCT {
                 token_identifier: USDC_TOKEN_ID.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(ADD_LIQUIDITY_TOKENS),
@@ -279,19 +278,6 @@ where
                     }
 
                     sc.multi_pair_swap(swap_operations);
-                },
-            )
-            .assert_ok();
-    }
-
-    pub fn migrate_pair_map(&mut self) {
-        self.blockchain_wrapper
-            .execute_tx(
-                &self.owner_address,
-                &self.router_wrapper,
-                &rust_biguint!(0u64),
-                |sc| {
-                    sc.migrate_pair_map();
                 },
             )
             .assert_ok();

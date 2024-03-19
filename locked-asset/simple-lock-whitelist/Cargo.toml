@@ -1,8 +1,8 @@
 [package]
 name = "simple-lock-whitelist"
 version = "0.0.0"
-authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
-edition = "2021"
+authors = [ "Dorin Iancu <dorin.iancu@dharitri.com>" ]
+edition = "2018"
 publish = false
 
 [lib]
@@ -14,17 +14,17 @@ path = "../simple-lock"
 [dependencies.utils]
 path = "../../common/modules/utils"
 
-[dependencies.dharitri-sc]
-version = "=0.13.6"
-features = ["dct-token-payment-legacy-decode"]
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
+features = ["dct-token-payment-legacy-decode",]
 
-[dependencies.dharitri-sc-modules]
-version = "=0.13.6"
+[dependencies.dharitri-wasm-modules]
+version = "=0.10.6"
+
+[dev-dependencies.dharitri-wasm-debug]
+version = "=0.10.6"
 
 [dev-dependencies]
 num-bigint = "0.4.2"
 num-traits = "0.2"
 hex = "0.4"
-
-[dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.6"

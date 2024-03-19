@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use super::base::SwapTokensOrder;
 

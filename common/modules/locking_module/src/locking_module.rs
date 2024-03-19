@@ -1,6 +1,6 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LockingModule {
     #[only_owner]
     #[endpoint(setLockingScAddress)]
@@ -49,7 +49,7 @@ pub trait LockingModule {
 
         proxy_instance
             .lock_tokens_endpoint(unlock_epoch, opt_dest)
-            .with_moax_or_single_dct_transfer((token_id, 0, amount))
+            .with_moax_or_single_dct_token_transfer(token_id, 0, amount)
             .execute_on_dest_context()
     }
 

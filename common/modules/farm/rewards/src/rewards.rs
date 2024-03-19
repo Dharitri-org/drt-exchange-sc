@@ -1,8 +1,8 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait RewardsModule:
     config::ConfigModule + pausable::PausableModule + permissions_module::PermissionsModule
 {

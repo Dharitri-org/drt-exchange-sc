@@ -1,11 +1,11 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use energy_factory::unstake::ProxyTrait as _;
 use simple_lock::locked_token::LockedTokenAttributes;
 
 use crate::events;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait CancelUnstakeModule:
     crate::tokens_per_user::TokensPerUserModule
     + energy_query::EnergyQueryModule
@@ -27,7 +27,6 @@ pub trait CancelUnstakeModule:
         for entry in &user_entries {
             let locked_tokens = entry.locked_tokens;
             let attributes: LockedTokenAttributes<Self::Api> = self
-                .blockchain()
                 .get_token_attributes(&locked_tokens.token_identifier, locked_tokens.token_nonce);
             if attributes.unlock_epoch >= current_epoch {
                 energy.add_after_token_lock(

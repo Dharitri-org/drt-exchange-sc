@@ -1,10 +1,10 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use energy_query::Energy;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait EnergyFactoryMock {
     #[init]
     fn init(&self) {}
@@ -54,7 +54,4 @@ pub trait EnergyFactoryMock {
 
     #[storage_mapper("userEnergy")]
     fn user_energy(&self, user: &ManagedAddress) -> SingleValueMapper<Energy<Self::Api>>;
-
-    #[storage_mapper("lockedTokenId")]
-    fn locked_token(&self) -> NonFungibleTokenMapper;
 }

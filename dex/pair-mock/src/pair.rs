@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use itertools::Itertools;
 
@@ -14,9 +14,8 @@ pub const DEFAULT_LP_TOKEN_ID: &[u8] = b"LPTOK-abcdef";
 pub const DEFAULT_STATE: bool = true;
 pub const DEFAULT_SKIP_MINTING_LP_TOKENS: bool = true;
 
-#[dharitri_sc::derive::contract]
+#[dharitri_wasm::derive::contract]
 pub trait PairMock {
-    #[allow_multiple_var_args]
     #[init]
     fn init(
         &self,
@@ -121,8 +120,8 @@ pub trait PairMock {
             .into()
     }
 
-    #[endpoint(getTokensForGivenPositionWithSafePrice)]
-    fn get_tokens_for_given_position_with_safe_price(
+    #[endpoint(updateAndGetTokensForGivenPositionWithSafePrice)]
+    fn update_and_get_tokens_for_given_position_with_safe_price(
         &self,
         liquidity: BigUint,
     ) -> MultiValue2<DctTokenPayment<Self::Api>, DctTokenPayment<Self::Api>> {

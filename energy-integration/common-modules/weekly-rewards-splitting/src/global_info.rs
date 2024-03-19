@@ -1,4 +1,4 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_types::Week;
 use energy_query::Energy;
@@ -6,7 +6,7 @@ use week_timekeeping::EPOCHS_IN_WEEK;
 
 use crate::USER_MAX_CLAIM_WEEKS;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait WeeklyRewardsGlobalInfo:
     crate::events::WeeklyRewardsSplittingEventsModule
     + crate::locked_token_buckets::WeeklyRewardsLockedTokenBucketsModule
@@ -62,10 +62,9 @@ pub trait WeeklyRewardsGlobalInfo:
             return;
         }
 
+        let last_week_tokens_mapper = self.total_locked_tokens_for_week(last_global_update_week);
         let mut total_energy = self.total_energy_for_week(last_global_update_week).get();
-        let mut total_tokens = self
-            .total_locked_tokens_for_week(last_global_update_week)
-            .take();
+        let mut total_tokens = last_week_tokens_mapper.get();
 
         let week_diff = current_week - last_global_update_week;
         self.shift_buckets_and_update_tokens_energy(
@@ -77,6 +76,7 @@ pub trait WeeklyRewardsGlobalInfo:
         self.total_energy_for_week(current_week).set(&total_energy);
         self.total_locked_tokens_for_week(current_week)
             .set(&total_tokens);
+        last_week_tokens_mapper.clear();
 
         // clear entries that are not accessible anymore
         // users can claim only for weeks of

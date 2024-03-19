@@ -2,9 +2,9 @@
 
 use common_errors::ERROR_PARAMETERS;
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait SCWhitelistModule {
     #[only_owner]
     #[endpoint(addSCAddressToWhitelist)]
@@ -47,5 +47,5 @@ pub trait SCWhitelistModule {
     }
 
     #[storage_mapper("scWhitelistAddresses")]
-    fn sc_whitelist_addresses(&self) -> WhitelistMapper<ManagedAddress>;
+    fn sc_whitelist_addresses(&self) -> WhitelistMapper<Self::Api, ManagedAddress>;
 }

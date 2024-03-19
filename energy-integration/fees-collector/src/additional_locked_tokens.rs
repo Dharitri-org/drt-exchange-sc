@@ -1,10 +1,10 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_types::Week;
 
 pub const BLOCKS_IN_WEEK: u64 = 100_800;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait AdditionalLockedTokensModule:
     crate::config::ConfigModule
     + crate::fees_accumulation::FeesAccumulationModule

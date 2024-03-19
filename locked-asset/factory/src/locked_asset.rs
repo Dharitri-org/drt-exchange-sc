@@ -1,7 +1,9 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use common_structs::*;
+
+use crate::attr_ex_helper::PRECISION_EX_INCREASE;
 
 pub const ONE_MILLION: u64 = 1_000_000u64;
 pub const TEN_THOUSAND: u64 = 10_000u64;
@@ -13,7 +15,7 @@ pub struct LockedTokenEx<M: ManagedTypeApi> {
     pub attributes: LockedAssetTokenAttributesEx<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LockedAssetModule:
     token_send::TokenSendModule + crate::attr_ex_helper::AttrExHelper
 {
@@ -186,7 +188,7 @@ pub trait LockedAssetModule:
 
     #[view(getLockedAssetTokenId)]
     #[storage_mapper("locked_asset_token_id")]
-    fn locked_asset_token(&self) -> NonFungibleTokenMapper;
+    fn locked_asset_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 
     #[view(getAssetTokenId)]
     #[storage_mapper("asset_token_id")]

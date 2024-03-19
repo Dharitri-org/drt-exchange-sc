@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 pub static CANNOT_UNWRAP_MSG: &[u8] = b"Cannot unwrap value";
 

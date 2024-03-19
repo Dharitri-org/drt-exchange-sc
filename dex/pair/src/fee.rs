@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use super::amm;
 use super::config;
@@ -13,9 +13,9 @@ use common_structs::TokenPair;
 use fees_collector::fees_accumulation::ProxyTrait as _;
 
 mod self_proxy {
-    dharitri_sc::imports!();
+    dharitri_wasm::imports!();
 
-    #[dharitri_sc::proxy]
+    #[dharitri_wasm::proxy]
     pub trait PairProxy {
         #[payable("*")]
         #[endpoint(swapNoFeeAndForward)]
@@ -23,7 +23,7 @@ mod self_proxy {
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait FeeModule:
     config::ConfigModule
     + liquidity_pool::LiquidityPoolModule
@@ -175,7 +175,7 @@ pub trait FeeModule:
         let _: IgnoreValue = self
             .fees_collector_proxy(fees_collector_address)
             .deposit_swap_fees()
-            .with_dct_transfer((token, 0, cut_amount))
+            .add_dct_token_transfer(token, 0, cut_amount)
             .execute_on_dest_context();
     }
 
@@ -300,7 +300,7 @@ pub trait FeeModule:
             .pair_proxy()
             .contract(pair_address)
             .swap_no_fee(requested_token.clone(), destination_address.clone())
-            .with_dct_transfer((available_token.clone(), 0, available_amount.clone()))
+            .add_dct_token_transfer(available_token.clone(), 0, available_amount.clone())
             .execute_on_dest_context();
     }
 

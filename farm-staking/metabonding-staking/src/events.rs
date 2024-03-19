@@ -1,8 +1,8 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::locked_asset_token::UserEntry;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     #[event("stakeEvent")]
     fn stake_event(

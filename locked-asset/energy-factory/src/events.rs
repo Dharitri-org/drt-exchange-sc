@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::energy::Energy;
 
@@ -9,7 +9,7 @@ pub struct EnergyUpdatedEvent<M: ManagedTypeApi> {
     pub new_energy_entry: Energy<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     fn emit_energy_updated_event(
         &self,

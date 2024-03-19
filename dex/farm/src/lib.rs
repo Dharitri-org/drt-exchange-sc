@@ -2,11 +2,13 @@
 #![allow(clippy::too_many_arguments)]
 #![feature(exact_size_is_empty)]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 pub mod base_functions;
+pub mod claim_boost_only;
 pub mod exit_penalty;
+pub mod progress_update;
 
 use base_functions::{ClaimRewardsResultType, DoubleMultiPayment, Wrapper};
 use common_structs::FarmTokenAttributes;
@@ -16,11 +18,13 @@ use exit_penalty::{
     DEFAULT_BURN_GAS_LIMIT, DEFAULT_MINUMUM_FARMING_EPOCHS, DEFAULT_PENALTY_PERCENT,
 };
 use farm_base_impl::base_traits_impl::FarmContract;
+use mergeable::Mergeable;
 
 pub type EnterFarmResultType<M> = DoubleMultiPayment<M>;
-pub type ExitFarmWithPartialPosResultType<M> = DoubleMultiPayment<M>;
+pub type ExitFarmWithPartialPosResultType<M> =
+    MultiValue3<DctTokenPayment<M>, DctTokenPayment<M>, DctTokenPayment<M>>;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait Farm:
     rewards::RewardsModule
     + config::ConfigModule
@@ -30,9 +34,11 @@ pub trait Farm:
     + permissions_module::PermissionsModule
     + sc_whitelist_module::SCWhitelistModule
     + events::EventsModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + base_functions::BaseFunctionsModule
     + exit_penalty::ExitPenaltyModule
+    + progress_update::ProgressUpdateModule
+    + claim_boost_only::ClaimBoostOnlyModule
     + farm_base_impl::base_farm_init::BaseFarmInitModule
     + farm_base_impl::base_farm_validation::BaseFarmValidationModule
     + farm_base_impl::enter_farm::BaseEnterFarmModule
@@ -76,17 +82,6 @@ pub trait Farm:
 
         let current_epoch = self.blockchain().get_block_epoch();
         self.first_week_start_epoch().set_if_empty(current_epoch);
-
-        // Farm position migration code
-        let farm_token_mapper = self.farm_token();
-        self.try_set_farm_position_migration_nonce(farm_token_mapper);
-    }
-
-    #[endpoint]
-    fn upgrade(&self) {
-        // Farm position migration code
-        let farm_token_mapper = self.farm_token();
-        self.try_set_farm_position_migration_nonce(farm_token_mapper);
     }
 
     #[payable("*")]
@@ -98,18 +93,20 @@ pub trait Farm:
         let caller = self.blockchain().get_caller();
         let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
 
-        self.migrate_old_farm_positions(&orig_caller);
-        let boosted_rewards = self.claim_only_boosted_payment(&orig_caller);
-        let boosted_rewards_payment =
-            DctTokenPayment::new(self.reward_token_id().get(), 0, boosted_rewards);
+        let payments = self.get_non_empty_payments();
+        let first_additional_payment_index = 1;
+        let boosted_rewards = match payments.try_get(first_additional_payment_index) {
+            Some(p) => self.claim_only_boosted_payment(&orig_caller, &p),
+            None => DctTokenPayment::new(self.reward_token_id().get(), 0, BigUint::zero()),
+        };
 
         let new_farm_token = self.enter_farm::<Wrapper<Self>>(orig_caller.clone());
         self.send_payment_non_zero(&caller, &new_farm_token);
-        self.send_payment_non_zero(&caller, &boosted_rewards_payment);
+        self.send_payment_non_zero(&caller, &boosted_rewards);
 
         self.update_energy_and_progress(&orig_caller);
 
-        (new_farm_token, boosted_rewards_payment).into()
+        (new_farm_token, boosted_rewards).into()
     }
 
     #[payable("*")]
@@ -121,10 +118,7 @@ pub trait Farm:
         let caller = self.blockchain().get_caller();
         let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
 
-        self.migrate_old_farm_positions(&orig_caller);
-
         let claim_rewards_result = self.claim_rewards::<Wrapper<Self>>(orig_caller);
-
         self.send_payment_non_zero(&caller, &claim_rewards_result.new_farm_token);
         self.send_payment_non_zero(&caller, &claim_rewards_result.rewards);
 
@@ -140,13 +134,8 @@ pub trait Farm:
         let caller = self.blockchain().get_caller();
         let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
 
-        self.migrate_old_farm_positions(&orig_caller);
-
-        let output_farm_token_payment = self.compound_rewards::<Wrapper<Self>>(orig_caller.clone());
-
+        let output_farm_token_payment = self.compound_rewards::<Wrapper<Self>>(orig_caller);
         self.send_payment_non_zero(&caller, &output_farm_token_payment);
-
-        self.update_energy_and_progress(&orig_caller);
 
         output_farm_token_payment
     }
@@ -155,91 +144,52 @@ pub trait Farm:
     #[endpoint(exitFarm)]
     fn exit_farm_endpoint(
         &self,
+        exit_amount: BigUint,
         opt_orig_caller: OptionalValue<ManagedAddress>,
     ) -> ExitFarmWithPartialPosResultType<Self::Api> {
         let caller = self.blockchain().get_caller();
         let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
 
-        let payment = self.call_value().single_dct();
+        let mut payment = self.call_value().single_dct();
+        require!(
+            payment.amount >= exit_amount,
+            "Exit amount is bigger than the payment amount"
+        );
 
-        let migrated_amount = self.migrate_old_farm_positions(&orig_caller);
+        let boosted_rewards_full_position = self.claim_only_boosted_payment(&orig_caller, &payment);
+        let remaining_farm_payment = DctTokenPayment::new(
+            payment.token_identifier.clone(),
+            payment.token_nonce,
+            &payment.amount - &exit_amount,
+        );
 
-        let exit_farm_result = self.exit_farm::<Wrapper<Self>>(orig_caller.clone(), payment);
+        payment.amount = exit_amount;
 
-        self.decrease_old_farm_positions(migrated_amount, &orig_caller);
+        let mut exit_farm_result = self.exit_farm::<Wrapper<Self>>(orig_caller.clone(), payment);
+        exit_farm_result
+            .rewards
+            .merge_with(boosted_rewards_full_position);
 
         self.send_payment_non_zero(&caller, &exit_farm_result.farming_tokens);
         self.send_payment_non_zero(&caller, &exit_farm_result.rewards);
+        self.send_payment_non_zero(&caller, &remaining_farm_payment);
 
-        self.clear_user_energy_if_needed(&orig_caller);
-
-        (exit_farm_result.farming_tokens, exit_farm_result.rewards).into()
-    }
-
-    #[payable("*")]
-    #[endpoint(mergeFarmTokens)]
-    fn merge_farm_tokens_endpoint(
-        &self,
-        opt_orig_caller: OptionalValue<ManagedAddress>,
-    ) -> DoubleMultiPayment<Self::Api> {
-        let caller = self.blockchain().get_caller();
-        let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
-        self.migrate_old_farm_positions(&orig_caller);
-
-        let boosted_rewards = self.claim_only_boosted_payment(&orig_caller);
-        let boosted_rewards_payment =
-            DctTokenPayment::new(self.reward_token_id().get(), 0, boosted_rewards);
-
-        let merged_farm_token = self.merge_farm_tokens::<Wrapper<Self>>();
-        self.send_payment_non_zero(&caller, &merged_farm_token);
-        self.send_payment_non_zero(&caller, &boosted_rewards_payment);
-
-        (merged_farm_token, boosted_rewards_payment).into()
-    }
-
-    #[endpoint(claimBoostedRewards)]
-    fn claim_boosted_rewards(
-        &self,
-        opt_user: OptionalValue<ManagedAddress>,
-    ) -> DctTokenPayment<Self::Api> {
-        let caller = self.blockchain().get_caller();
-        let user = match &opt_user {
-            OptionalValue::Some(user) => user,
-            OptionalValue::None => &caller,
-        };
-        let user_total_farm_position = self.get_user_total_farm_position(user);
-        if user != &caller {
-            require!(
-                user_total_farm_position.allow_external_claim_boosted_rewards,
-                "Cannot claim rewards for this address"
+        let opt_config = self.try_get_boosted_yields_config();
+        if let Some(config) = opt_config {
+            let boosted_yields_factors = config.get_latest_factors();
+            self.clear_user_energy(
+                &orig_caller,
+                &remaining_farm_payment.amount,
+                &boosted_yields_factors.min_farm_amount,
             );
         }
 
-        let boosted_rewards = self.claim_only_boosted_payment(user);
-        let boosted_rewards_payment =
-            DctTokenPayment::new(self.reward_token_id().get(), 0, boosted_rewards);
-
-        self.send_payment_non_zero(user, &boosted_rewards_payment);
-
-        boosted_rewards_payment
-    }
-
-    #[endpoint(startProduceRewards)]
-    fn start_produce_rewards_endpoint(&self) {
-        self.require_caller_has_admin_permissions();
-        self.start_produce_rewards();
-    }
-
-    #[endpoint(endProduceRewards)]
-    fn end_produce_rewards_endpoint(&self) {
-        self.require_caller_has_admin_permissions();
-        self.end_produce_rewards::<Wrapper<Self>>();
-    }
-
-    #[endpoint(setPerBlockRewardAmount)]
-    fn set_per_block_rewards_endpoint(&self, per_block_amount: BigUint) {
-        self.require_caller_has_admin_permissions();
-        self.set_per_block_rewards::<Wrapper<Self>>(per_block_amount);
+        (
+            exit_farm_result.farming_tokens,
+            exit_farm_result.rewards,
+            remaining_farm_payment,
+        )
+            .into()
     }
 
     #[view(calculateRewardsForGivenPosition)]
@@ -261,5 +211,39 @@ pub trait Farm:
             &attributes,
             &storage_cache,
         )
+    }
+
+    #[payable("*")]
+    #[endpoint(mergeFarmTokens)]
+    fn merge_farm_tokens_endpoint(
+        &self,
+        opt_orig_caller: OptionalValue<ManagedAddress>,
+    ) -> DctTokenPayment<Self::Api> {
+        let caller = self.blockchain().get_caller();
+        let orig_caller = self.get_orig_caller_from_opt(&caller, opt_orig_caller);
+        self.check_claim_progress_for_merge(&orig_caller);
+
+        let merged_farm_token = self.merge_farm_tokens::<Wrapper<Self>>();
+        self.send_payment_non_zero(&caller, &merged_farm_token);
+
+        merged_farm_token
+    }
+
+    #[endpoint(startProduceRewards)]
+    fn start_produce_rewards_endpoint(&self) {
+        self.require_caller_has_admin_permissions();
+        self.start_produce_rewards();
+    }
+
+    #[endpoint(endProduceRewards)]
+    fn end_produce_rewards_endpoint(&self) {
+        self.require_caller_has_admin_permissions();
+        self.end_produce_rewards::<Wrapper<Self>>();
+    }
+
+    #[endpoint(setPerBlockRewardAmount)]
+    fn set_per_block_rewards_endpoint(&self, per_block_amount: BigUint) {
+        self.require_caller_has_admin_permissions();
+        self.set_per_block_rewards::<Wrapper<Self>>(per_block_amount);
     }
 }

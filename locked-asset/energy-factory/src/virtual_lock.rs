@@ -1,24 +1,23 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::energy::Energy;
 use common_structs::Epoch;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait VirtualLockModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::token_whitelist::TokenWhitelistModule
     + crate::energy::EnergyModule
     + crate::lock_options::LockOptionsModule
     + crate::events::EventsModule
     + crate::migration::SimpleLockMigrationModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + utils::UtilsModule
     + crate::extend_lock::ExtendLockModule
     + sc_whitelist_module::SCWhitelistModule
-    + legacy_token_decode_module::LegacyTokenDecodeModule
 {
     #[endpoint(lockVirtual)]
     fn lock_virtual(
@@ -41,11 +40,6 @@ pub trait VirtualLockModule:
 
         let current_epoch = self.blockchain().get_block_epoch();
         let unlock_epoch = self.unlock_epoch_to_start_of_month(current_epoch + lock_epochs);
-
-        require!(
-            unlock_epoch > current_epoch,
-            "Unlock epoch must be greater than the current epoch"
-        );
 
         let locked_tokens =
             self.update_energy(&energy_address, |energy: &mut Energy<Self::Api>| {

@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::{error_messages::*, proxy_lp::LpProxyTokenAttributes};
 
@@ -26,14 +26,14 @@ pub type FarmClaimRewardsThroughProxyResultType<M> =
     MultiValue2<DctTokenPayment<M>, DctTokenPayment<M>>;
 pub type FarmCompoundRewardsThroughProxyResultType<M> = DctTokenPayment<M>;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait ProxyFarmModule:
     crate::farm_interactions::FarmInteractionsModule
     + crate::lp_interactions::LpInteractionsModule
     + crate::locked_token::LockedTokenModule
     + crate::proxy_lp::ProxyLpModule
     + crate::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[only_owner]
     #[payable("MOAX")]
@@ -44,7 +44,7 @@ pub trait ProxyFarmModule:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value().clone_value();
+        let payment_amount = self.call_value().moax_value();
 
         self.farm_proxy_token().issue_and_set_all_roles(
             DctTokenType::Meta,
@@ -91,13 +91,13 @@ pub trait ProxyFarmModule:
         let was_removed = self.known_farms().swap_remove(&farm_address);
         require!(was_removed, "Farm address not known");
 
-        let stored_addr = self
-            .farm_address_for_token(&farming_token_id, farm_type)
-            .take();
+        let mapper_by_token = self.farm_address_for_token(&farming_token_id, farm_type);
         require!(
-            stored_addr == farm_address,
+            mapper_by_token.get() == farm_address,
             "Farm address does not match the given token and farm type"
         );
+
+        mapper_by_token.clear();
     }
 
     /// Enter farm with LOCKED tokens.
@@ -117,7 +117,7 @@ pub trait ProxyFarmModule:
         farm_type: FarmType,
     ) -> EnterFarmThroughProxyResultType<Self::Api> {
         let payments: ManagedVec<DctTokenPayment<Self::Api>> =
-            self.call_value().all_dct_transfers().clone_value();
+            self.call_value().all_dct_transfers();
         require!(!payments.is_empty(), NO_PAYMENT_ERR_MSG);
 
         let proxy_lp_payment: DctTokenPayment<Self::Api> = payments.get(0);
@@ -155,13 +155,11 @@ pub trait ProxyFarmModule:
 
         let farm_address =
             self.try_get_farm_address(&lp_proxy_token_attributes.lp_token_id, farm_type);
-        let caller = self.blockchain().get_caller();
         let enter_farm_result = self.call_farm_enter(
             farm_address,
             lp_proxy_token_attributes.lp_token_id.clone(),
             proxy_lp_payment.amount,
             additional_farm_payments,
-            caller.clone(),
         );
         let farm_tokens = enter_farm_result.farm_tokens;
         let proxy_farm_token_attributes = FarmProxyTokenAttributes {
@@ -172,20 +170,12 @@ pub trait ProxyFarmModule:
             farming_token_locked_nonce: proxy_lp_payment.token_nonce,
         };
 
+        let caller = self.blockchain().get_caller();
         let farm_tokens = farm_proxy_token_mapper.nft_create_and_send(
             &caller,
             farm_tokens.amount,
             &proxy_farm_token_attributes,
         );
-
-        if enter_farm_result.reward_tokens.amount > 0 {
-            self.send().direct_dct(
-                &caller,
-                &enter_farm_result.reward_tokens.token_identifier,
-                enter_farm_result.reward_tokens.token_nonce,
-                &enter_farm_result.reward_tokens.amount,
-            );
-        }
 
         (farm_tokens, enter_farm_result.reward_tokens).into()
     }
@@ -199,9 +189,11 @@ pub trait ProxyFarmModule:
     /// - farm reward tokens
     #[payable("*")]
     #[endpoint(exitFarmLockedToken)]
-    fn exit_farm_locked_token(&self) -> ExitFarmThroughProxyResultType<Self::Api> {
+    fn exit_farm_locked_token(
+        &self,
+        exit_amount: BigUint,
+    ) -> ExitFarmThroughProxyResultType<Self::Api> {
         let payment: DctTokenPayment<Self::Api> = self.call_value().single_dct();
-
         let farm_proxy_token_attributes: FarmProxyTokenAttributes<Self::Api> =
             self.validate_payment_and_get_farm_proxy_token_attributes(&payment);
 
@@ -209,19 +201,20 @@ pub trait ProxyFarmModule:
             &farm_proxy_token_attributes.farming_token_id,
             farm_proxy_token_attributes.farm_type,
         );
-        let caller = self.blockchain().get_caller();
         let exit_farm_result = self.call_farm_exit(
             farm_address,
             farm_proxy_token_attributes.farm_token_id,
             farm_proxy_token_attributes.farm_token_nonce,
             payment.amount,
-            caller.clone(),
+            exit_amount,
         );
         require!(
             exit_farm_result.initial_farming_tokens.token_identifier
                 == farm_proxy_token_attributes.farming_token_id,
             INVALID_PAYMENTS_RECEIVED_FROM_FARM_ERR_MSG
         );
+
+        let caller = self.blockchain().get_caller();
 
         let lp_proxy_token = self.lp_proxy_token();
         let lp_proxy_token_payment = DctTokenPayment::new(
@@ -268,13 +261,11 @@ pub trait ProxyFarmModule:
             &farm_proxy_token_attributes.farming_token_id,
             farm_proxy_token_attributes.farm_type,
         );
-        let caller = self.blockchain().get_caller();
         let claim_rewards_result = self.call_farm_claim_rewards(
             farm_address,
             farm_proxy_token_attributes.farm_token_id.clone(),
             farm_proxy_token_attributes.farm_token_nonce,
             payment.amount,
-            caller.clone(),
         );
         require!(
             claim_rewards_result.new_farm_tokens.token_identifier
@@ -285,6 +276,7 @@ pub trait ProxyFarmModule:
         farm_proxy_token_attributes.farm_token_nonce =
             claim_rewards_result.new_farm_tokens.token_nonce;
 
+        let caller = self.blockchain().get_caller();
         let new_proxy_token_payment = self.farm_proxy_token().nft_create_and_send(
             &caller,
             claim_rewards_result.new_farm_tokens.amount,
@@ -347,5 +339,5 @@ pub trait ProxyFarmModule:
 
     #[view(getFarmProxyTokenId)]
     #[storage_mapper("farmProxyTokenId")]
-    fn farm_proxy_token(&self) -> NonFungibleTokenMapper;
+    fn farm_proxy_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 }

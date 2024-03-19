@@ -1,25 +1,24 @@
 #![allow(dead_code)]
-#![allow(deprecated)]
 
 pub mod fees_collector_mock;
 
+use dharitri_wasm::{
+    dharitri_codec::multi_types::OptionalValue,
+    storage::mappers::StorageTokenWrapper,
+    types::{Address, DctLocalRole, MultiValueEncoded},
+};
+use dharitri_wasm_debug::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint,
+    testing_framework::{BlockchainStateWrapper, ContractObjWrapper},
+    tx_mock::TxResult,
+    DebugApi,
+};
+use dharitri_wasm_modules::pause::PauseModule;
 use energy_factory::{
     energy::EnergyModule, unlock_with_penalty::UnlockWithPenaltyModule, unstake::UnstakeModule,
     SimpleLockEnergy,
 };
 use fees_collector_mock::*;
-use dharitri_sc::{
-    codec::multi_types::OptionalValue,
-    storage::mappers::StorageTokenWrapper,
-    types::{Address, DctLocalRole, MultiValueEncoded},
-};
-use dharitri_sc_modules::pause::PauseModule;
-use dharitri_sc_scenario::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint,
-    whitebox_legacy::TxResult,
-    whitebox_legacy::{BlockchainStateWrapper, ContractObjWrapper},
-    DebugApi,
-};
 use simple_lock::locked_token::LockedTokenModule;
 use token_unstake::{
     cancel_unstake::CancelUnstakeModule, unbond_tokens::UnbondTokensModule, TokenUnstakeModule,
@@ -65,7 +64,7 @@ where
         energy_factory_builder: EnergyFactoryBuilder,
         unstake_sc_builder: UnstakeScBuilder,
     ) -> Self {
-        DebugApi::dummy();
+        let _ = DebugApi::dummy();
         let rust_zero = rust_biguint!(0u64);
         let mut b_mock = BlockchainStateWrapper::new();
         let owner = b_mock.create_user_account(&rust_zero);
@@ -311,15 +310,15 @@ where
 }
 
 pub fn to_rust_biguint(
-    managed_biguint: dharitri_sc::types::BigUint<DebugApi>,
+    managed_biguint: dharitri_wasm::types::BigUint<DebugApi>,
 ) -> num_bigint::BigUint {
     num_bigint::BigUint::from_bytes_be(managed_biguint.to_bytes_be().as_slice())
 }
 
 pub fn to_managed_biguint(
     rust_biguint: num_bigint::BigUint,
-) -> dharitri_sc::types::BigUint<DebugApi> {
-    dharitri_sc::types::BigUint::from_bytes_be(&rust_biguint.to_bytes_be())
+) -> dharitri_wasm::types::BigUint<DebugApi> {
+    dharitri_wasm::types::BigUint::from_bytes_be(&rust_biguint.to_bytes_be())
 }
 
 pub fn to_start_of_month(unlock_epoch: u64) -> u64 {

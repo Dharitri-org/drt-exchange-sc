@@ -1,16 +1,13 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use weekly_rewards_splitting::update_claim_progress_energy::ProxyTrait as _;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait EnergyUpdate {
     #[init]
     fn init(&self) {}
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     #[endpoint(updateFarmsEnergyForUser)]
     fn update_farms_energy_for_user(

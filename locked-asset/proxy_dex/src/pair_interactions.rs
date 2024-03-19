@@ -1,10 +1,6 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-use pair::pair_actions::{
-    add_liq::ProxyTrait as _,
-    common_result_types::{AddLiquidityResultType, RemoveLiquidityResultType},
-    remove_liq::ProxyTrait as _,
-};
+use pair::{AddLiquidityResultType, ProxyTrait as _, RemoveLiquidityResultType};
 
 pub struct AddLiquidityResultWrapper<M: ManagedTypeApi> {
     pub lp_tokens_received: DctTokenPayment<M>,
@@ -17,7 +13,7 @@ pub struct RemoveLiqudityResultWrapper<M: ManagedTypeApi> {
     pub second_token_received: DctTokenPayment<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait PairInteractionsModule {
     fn call_add_liquidity(
         &self,
@@ -77,7 +73,7 @@ pub trait PairInteractionsModule {
         let raw_result: RemoveLiquidityResultType<Self::Api> = self
             .pair_contract_proxy(pair_address)
             .remove_liquidity(first_token_amount_min, second_token_amount_min)
-            .with_dct_transfer((lp_token_id, 0, lp_token_amount))
+            .add_dct_token_transfer(lp_token_id, 0, lp_token_amount)
             .execute_on_dest_context();
         let (first_token_received, second_token_received) = raw_result.into_tuple();
 

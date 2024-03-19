@@ -1,8 +1,9 @@
 #![no_std]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
+use crate::dharitri_codec::TopEncode;
 use common_errors::{
     ERROR_NOT_A_FARM_TOKEN, ERROR_NO_TOKEN_TO_MERGE, ERROR_TOO_MANY_ADDITIONAL_PAYMENTS,
     ERROR_ZERO_AMOUNT,
@@ -16,12 +17,12 @@ use token_merge_helper::{ValueWeight, WeightedAverageType};
 pub const MAX_ADDITIONAL_TOKENS: usize = 10;
 pub const MAX_TOTAL_TOKENS: usize = MAX_ADDITIONAL_TOKENS + 1;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait FarmTokenMergeModule:
     token_merge_helper::TokenMergeHelperModule
     + farm_token::FarmTokenModule
     + permissions_module::PermissionsModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     fn create_farm_tokens_by_merging<AttributesType, AttributesMergingFunction>(
         &self,

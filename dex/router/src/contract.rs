@@ -1,7 +1,7 @@
 #![no_std]
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 pub mod enable_swap_by_user;
 mod events;
@@ -22,7 +22,7 @@ const DEFAULT_SPECIAL_FEE_PERCENT: u64 = 50;
 const MAX_TOTAL_FEE_PERCENT: u64 = 100_000;
 const USER_DEFINED_TOTAL_FEE_PERCENT: u64 = 1_000;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait Router:
     factory::FactoryModule
     + events::EventsModule
@@ -38,9 +38,6 @@ pub trait Router:
         self.init_factory(pair_template_address_opt.into_option());
         self.owner().set(&self.blockchain().get_caller());
     }
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     #[only_owner]
     #[endpoint]
@@ -70,7 +67,6 @@ pub trait Router:
         }
     }
 
-    #[allow_multiple_var_args]
     #[endpoint(createPair)]
     fn create_pair_endpoint(
         &self,
@@ -194,7 +190,7 @@ pub trait Router:
         lp_token_display_name: ManagedBuffer,
         lp_token_ticker: ManagedBuffer,
     ) {
-        let issue_cost = self.call_value().moax_value().clone_value();
+        let issue_cost = self.call_value().moax_value();
 
         require!(self.is_active(), "Not active");
         let caller = self.blockchain().get_caller();
@@ -326,8 +322,6 @@ pub trait Router:
                 .unwrap_or_else(ManagedAddress::zero);
         }
 
-        self.address_pair_map().remove(&pair_address);
-
         pair_address
     }
 
@@ -398,20 +392,6 @@ pub trait Router:
     #[endpoint(setPairCreationEnabled)]
     fn set_pair_creation_enabled(&self, enabled: bool) {
         self.pair_creation_enabled().set(enabled);
-    }
-
-    #[only_owner]
-    #[endpoint(migratePairMap)]
-    fn migrate_pair_map(&self) {
-        let pair_map = self.pair_map();
-        let mut address_pair_map = self.address_pair_map();
-        require!(
-            address_pair_map.is_empty(),
-            "The destination mapper must be empty"
-        );
-        for (pair_tokens, address) in pair_map.iter() {
-            address_pair_map.insert(address, pair_tokens);
-        }
     }
 
     #[view(getPairCreationEnabled)]

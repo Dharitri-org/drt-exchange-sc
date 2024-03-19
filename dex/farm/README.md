@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Liquidity providers of xExchange are incentivized with MEX rewards in exchange for them locking their LP tokens in Farm contracts.  
+Liquidity providers of Maiar Exchange are incentivized with MEX rewards in exchange for them locking their LP tokens in Farm contracts.  
 
 ## Introduction
 
@@ -94,7 +94,7 @@ This endpoint merges two or more farm positions together and returns a single co
 
 ## Testing
 
-Aside from the scenario tests, there are a lot of tests that are available in the rust test suite.
+Aside from the denali tests, there are a lot of tests that are available in the rust test suite.
 
 ## Interaction
 

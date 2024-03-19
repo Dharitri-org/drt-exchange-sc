@@ -1,8 +1,8 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_types::PaymentsVec;
 use week_timekeeping::Week;
-
+use crate::update_claim_progress_energy::UpdateClaimProgressEnergyModule;
 use crate::{events, ClaimProgress};
 
 pub trait AllBaseWeeklyRewardsSplittingImplTraits =
@@ -11,8 +11,7 @@ pub trait AllBaseWeeklyRewardsSplittingImplTraits =
         + week_timekeeping::WeekTimekeepingModule
         + crate::global_info::WeeklyRewardsGlobalInfo
         + crate::locked_token_buckets::WeeklyRewardsLockedTokenBucketsModule
-        + events::WeeklyRewardsSplittingEventsModule
-        + crate::update_claim_progress_energy::UpdateClaimProgressEnergyModule;
+        + events::WeeklyRewardsSplittingEventsModule;
 
 pub trait WeeklyRewardsSplittingTraitsModule {
     type WeeklyRewardsSplittingMod: AllBaseWeeklyRewardsSplittingImplTraits;

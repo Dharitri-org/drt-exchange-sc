@@ -1,8 +1,8 @@
 use common_types::Week;
 use weekly_rewards_splitting::USER_MAX_CLAIM_WEEKS;
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 static INVALID_CONFIG_WEEK_ERR_MSG: &[u8] = b"Invalid config week";
 static NO_CONFIG_ERR_MSG: &[u8] = b"No config";
@@ -96,7 +96,7 @@ impl<M: ManagedTypeApi> BoostedYieldsConfig<M> {
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait BoostedYieldsFactorsModule:
     permissions_module::PermissionsModule + week_timekeeping::WeekTimekeepingModule
 {

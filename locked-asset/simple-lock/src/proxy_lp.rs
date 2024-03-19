@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::error_messages::*;
 use crate::locked_token::{LockedTokenAttributes, PreviousStatusFlag, UnlockedPaymentWrapper};
@@ -18,12 +18,12 @@ pub type AddLiquidityThroughProxyResultType<M> =
 pub type RemoveLiquidityThroughProxyResultType<M> =
     MultiValue2<DctTokenPayment<M>, DctTokenPayment<M>>;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait ProxyLpModule:
     crate::locked_token::LockedTokenModule
     + crate::lp_interactions::LpInteractionsModule
     + crate::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[only_owner]
     #[payable("MOAX")]
@@ -34,7 +34,7 @@ pub trait ProxyLpModule:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value().clone_value();
+        let payment_amount = self.call_value().moax_value();
 
         self.lp_proxy_token().issue_and_set_all_roles(
             DctTokenType::Meta,
@@ -104,11 +104,19 @@ pub trait ProxyLpModule:
             self.lp_address_for_token_pair(&second_token_id, &first_token_id);
 
         if !correct_order_mapper.is_empty() {
-            let stored_lp_addr = correct_order_mapper.take();
-            require!(stored_lp_addr == lp_address, LP_REMOVAL_WRONG_PAIR);
+            require!(
+                correct_order_mapper.get() == lp_address,
+                LP_REMOVAL_WRONG_PAIR
+            );
+
+            correct_order_mapper.clear();
         } else if !reverse_order_mapper.is_empty() {
-            let stored_lp_addr = reverse_order_mapper.take();
-            require!(stored_lp_addr == lp_address, LP_REMOVAL_WRONG_PAIR);
+            require!(
+                reverse_order_mapper.get() == lp_address,
+                LP_REMOVAL_WRONG_PAIR
+            );
+
+            reverse_order_mapper.clear();
         } else {
             sc_panic!(LP_REMOVAL_WRONG_PAIR);
         }
@@ -381,5 +389,5 @@ pub trait ProxyLpModule:
 
     #[view(getLpProxyTokenId)]
     #[storage_mapper("lpProxyTokenId")]
-    fn lp_proxy_token(&self) -> NonFungibleTokenMapper;
+    fn lp_proxy_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 }

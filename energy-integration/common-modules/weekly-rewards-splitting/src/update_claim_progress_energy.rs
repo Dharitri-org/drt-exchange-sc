@@ -1,4 +1,4 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_types::Week;
 use energy_query::Energy;
@@ -7,7 +7,7 @@ use crate::ClaimProgress;
 
 pub static ERROR_ENERGY_UPDATE_SAME_WEEK: &[u8] = b"Can update only after claim rewards";
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait UpdateClaimProgressEnergyModule:
     energy_query::EnergyQueryModule
     + week_timekeeping::WeekTimekeepingModule

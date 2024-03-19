@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::config;
 use crate::errors::*;
@@ -42,7 +42,7 @@ pub struct Proposal<M: ManagedTypeApi> {
     pub num_downvotes: BigUint<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait ProposalHelper: config::Config {
     #[view(getProposalStatus)]
     fn get_proposal_status_view(&self, proposal_id: u64) -> ProposalStatus {
@@ -103,18 +103,12 @@ pub trait ProposalHelper: config::Config {
     }
 
     fn execute_action(&self, action: &Action<Self::Api>) -> Result<(), &'static [u8]> {
-        self.send()
-            .contract_call::<()>(action.dest_address.clone(), action.endpoint_name.clone())
-            .with_raw_arguments(ManagedArgBuffer::from(action.arguments.clone()))
-            .with_gas_limit(action.gas_limit)
-            .transfer_execute();
-        Result::Ok(())
-        // ContractCallNoPayment::new()
-        // self.send_raw().direct_moax(
-        //     &BigUint::zero(),
-        //     action.gas_limit,
-        //     &action.endpoint_name,
-        //     &ManagedArgBuffer::from(action.arguments.clone()),
-        // )
+        Self::Api::send_api_impl().transfer_value_execute(
+            &action.dest_address,
+            &BigUint::zero(),
+            action.gas_limit,
+            &action.endpoint_name,
+            &ManagedArgBuffer::from(action.arguments.clone()),
+        )
     }
 }

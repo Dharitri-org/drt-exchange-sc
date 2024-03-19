@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use energy_query::Energy;
 use math::safe_sub;
@@ -28,7 +28,7 @@ impl<M: ManagedTypeApi> Default for LockedTokensBucket<M> {
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait WeeklyRewardsLockedTokenBucketsModule {
     fn shift_buckets_and_update_tokens_energy(
         &self,
@@ -41,7 +41,10 @@ pub trait WeeklyRewardsLockedTokenBucketsModule {
         for _ in 0..nr_pos_to_shift {
             let bucket_mapper = self.locked_tokens_in_bucket(first_bucket_id);
             let bucket = if !bucket_mapper.is_empty() {
-                bucket_mapper.take()
+                let b = bucket_mapper.get();
+                bucket_mapper.clear();
+
+                b
             } else {
                 LockedTokensBucket::default()
             };

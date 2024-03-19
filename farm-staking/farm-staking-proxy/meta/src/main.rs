@@ -1,3 +1,3 @@
 fn main() {
-    dharitri_sc_meta::cli_main::<farm_staking_proxy::AbiProvider>();
+    dharitri_wasm_debug::meta::perform::<farm_staking_proxy::AbiProvider>();
 }

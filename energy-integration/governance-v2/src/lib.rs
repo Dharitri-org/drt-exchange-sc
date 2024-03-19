@@ -1,105 +1,103 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
+pub mod caller_check;
 pub mod configurable;
 mod errors;
 pub mod events;
+pub mod gov_fees;
 pub mod proposal;
 pub mod proposal_storage;
 pub mod views;
 
 use proposal::*;
 use proposal_storage::VoteType;
-use weekly_rewards_splitting::events::Week;
-use weekly_rewards_splitting::global_info::ProxyTrait as _;
 
-use crate::configurable::{FULL_PERCENTAGE, MAX_GAS_LIMIT_PER_BLOCK};
 use crate::errors::*;
 use crate::proposal_storage::ProposalVotes;
 
+const MAX_GAS_LIMIT_PER_BLOCK: u64 = 600_000_000;
+static ALREADY_VOTED_ERR_MSG: &[u8] = b"Already voted for this proposal";
+
 /// An empty contract. To be used as a template when starting a new contract from scratch.
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait GovernanceV2:
     configurable::ConfigurablePropertiesModule
     + events::EventsModule
     + proposal_storage::ProposalStorageModule
+    + gov_fees::GovFeesModule
+    + caller_check::CallerCheckModule
     + views::ViewsModule
     + energy_query::EnergyQueryModule
-    + permissions_module::PermissionsModule
 {
     /// - `min_energy_for_propose` - the minimum energy required for submitting a proposal
-    /// - `min_fee_for_propose` - the minimum fee required for submitting a proposal
-    /// - `quorum_percentage` - the minimum number of (`votes` minus `downvotes`) at the end of voting period  
+    /// - `quorum` - the minimum number of (`votes` minus `downvotes`) at the end of voting period  
+    /// - `maxActionsPerProposal` - Maximum number of actions (transfers and/or smart contract calls) that a proposal may have  
     /// - `votingDelayInBlocks` - Number of blocks to wait after a block is proposed before being able to vote/downvote that proposal
     /// - `votingPeriodInBlocks` - Number of blocks the voting period lasts (voting delay does not count towards this)  
-    /// - `withdraw_percentage_defeated` - Percetange of the fee to be returned if proposal defetead
-    /// - `energy_factory_address`
-    /// - `fees_collector_address`
-    /// - `fee_token` - The token used to pay the fee
+    /// - `lockTimeAfterVotingEndsInBlocks` - Number of blocks to wait before a successful proposal can be executed  
     #[init]
     fn init(
         &self,
         min_energy_for_propose: BigUint,
         min_fee_for_propose: BigUint,
-        quorum_percentage: u64,
+        quorum: BigUint,
         voting_delay_in_blocks: u64,
         voting_period_in_blocks: u64,
-        withdraw_percentage_defeated: u64,
+        lock_time_after_voting_ends_in_blocks: u64,
         energy_factory_address: ManagedAddress,
-        fees_collector_address: ManagedAddress,
-        fee_token: TokenIdentifier,
     ) {
         self.try_change_min_energy_for_propose(min_energy_for_propose);
         self.try_change_min_fee_for_propose(min_fee_for_propose);
-        self.try_change_quorum_percentage(quorum_percentage);
+        self.try_change_quorum(quorum);
         self.try_change_voting_delay_in_blocks(voting_delay_in_blocks);
         self.try_change_voting_period_in_blocks(voting_period_in_blocks);
-        self.try_change_withdraw_percentage_defeated(withdraw_percentage_defeated);
+        self.try_change_lock_time_after_voting_ends_in_blocks(
+            lock_time_after_voting_ends_in_blocks,
+        );
         self.set_energy_factory_address(energy_factory_address);
-        self.fees_collector_address().set(&fees_collector_address);
-        self.try_change_fee_token_id(fee_token);
     }
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     /// Propose a list of actions.
     /// A maximum of MAX_GOVERNANCE_PROPOSAL_ACTIONS can be proposed at a time.
     ///
+    /// An action has the following format:
+    ///     - gas limit for action execution
+    ///     - destination address
+    ///     - a fee payment for proposal (if smaller than min_fee_for_propose, state: WaitForFee)
+    ///     - endpoint to be called on the destination
+    ///     - a vector of arguments for the endpoint, in the form of ManagedVec<ManagedBuffer>
+    ///
     /// The proposer's energy is NOT automatically used for voting. A separate vote is needed.
     ///
     /// Returns the ID of the newly created proposal.
-    #[payable("*")]
     #[endpoint]
     fn propose(
         &self,
         description: ManagedBuffer,
         actions: MultiValueEncoded<GovernanceActionAsMultiArg<Self::Api>>,
     ) -> ProposalId {
-        let proposer = self.blockchain().get_caller();
-        require!(
-            !self.blockchain().is_smart_contract(&proposer),
-            PROPOSAL_NOT_ALLOWED_FOR_SC
-        );
-
+        self.require_caller_not_self();
+        require!(!actions.is_empty(), "Proposal has no actions");
         require!(
             actions.len() <= MAX_GOVERNANCE_PROPOSAL_ACTIONS,
-            EXEEDED_MAX_ACTIONS
+            "Exceeded max actions per proposal"
         );
 
-        let user_energy = self.get_energy_amount(&proposer);
+        let proposer = self.blockchain().get_caller();
+        let user_energy = self.get_energy_amount_non_zero(&proposer);
         let min_energy_for_propose = self.min_energy_for_propose().get();
-        require!(user_energy >= min_energy_for_propose, NOT_ENOUGH_ENERGY);
+
+        require!(
+            user_energy >= min_energy_for_propose,
+            "Not enough energy for propose"
+        );
 
         let user_fee = self.call_value().single_dct();
         require!(
             self.fee_token_id().get() == user_fee.token_identifier,
             WRONG_TOKEN_ID
-        );
-        require!(
-            self.min_fee_for_propose().get() == user_fee.amount,
-            NOT_ENOUGH_FEE
         );
 
         let mut gov_actions = ArrayVec::new();
@@ -117,33 +115,32 @@ pub trait GovernanceV2:
 
         require!(
             self.total_gas_needed(&gov_actions) < MAX_GAS_LIMIT_PER_BLOCK,
-            TOO_MUCH_GAS
+            "Actions require too much gas to be executed"
         );
 
-        let minimum_quorum = self.quorum_percentage().get();
-        let voting_delay_in_blocks = self.voting_delay_in_blocks().get();
-        let voting_period_in_blocks = self.voting_period_in_blocks().get();
-        let withdraw_percentage_defeated = self.withdraw_percentage_defeated().get();
-        let current_block = self.blockchain().get_block_nonce();
+        let fees_entries = ManagedVec::from_single_item(FeeEntry {
+            depositor_addr: proposer.clone(),
+            tokens: user_fee.clone(),
+        });
 
         let proposal = GovernanceProposal {
-            proposal_id: self.proposals().len() + 1,
             proposer: proposer.clone(),
             description,
             actions: gov_actions,
-            fee_payment: user_fee,
-            minimum_quorum,
-            voting_delay_in_blocks,
-            voting_period_in_blocks,
-            withdraw_percentage_defeated,
-            total_quorum: BigUint::zero(),
-            proposal_start_block: current_block,
-            fee_withdrawn: false,
+            fees: ProposalFees {
+                total_amount: user_fee.amount,
+                entries: fees_entries,
+            },
         };
         let proposal_id = self.proposals().push(&proposal);
 
-        self.proposal_votes(proposal_id)
-            .set(ProposalVotes::default());
+        let proposal_votes = ProposalVotes::new();
+
+        self.proposal_votes(proposal_id).set(proposal_votes);
+
+        let current_block = self.blockchain().get_block_nonce();
+        self.proposal_start_block(proposal_id).set(current_block);
+
         self.proposal_created_event(proposal_id, &proposer, current_block, &proposal);
 
         proposal_id
@@ -152,140 +149,147 @@ pub trait GovernanceV2:
     /// Vote on a proposal. The voting power depends on the user's energy.
     #[endpoint]
     fn vote(&self, proposal_id: ProposalId, vote: VoteType) {
+        self.require_caller_not_self();
         self.require_valid_proposal_id(proposal_id);
         require!(
             self.get_proposal_status(proposal_id) == GovernanceProposalStatus::Active,
-            PROPOSAL_NOT_ACTIVE
+            "Proposal is not active"
         );
 
         let voter = self.blockchain().get_caller();
         let new_user = self.user_voted_proposals(&voter).insert(proposal_id);
         require!(new_user, ALREADY_VOTED_ERR_MSG);
 
-        let current_quorum = self.proposal_votes(proposal_id).get().quorum;
-
-        // First voter -> update total_energy
-        if current_quorum == BigUint::zero() {
-            let fees_collector_addr = self.fees_collector_address().get();
-            let last_global_update_week: Week = self
-                .fees_collector_proxy(fees_collector_addr.clone())
-                .last_global_update_week()
-                .execute_on_dest_context();
-
-            let total_quorum: BigUint = self
-                .fees_collector_proxy(fees_collector_addr)
-                .total_energy_for_week(last_global_update_week)
-                .execute_on_dest_context();
-
-            let mut proposal = self.proposals().get(proposal_id);
-            proposal.total_quorum = total_quorum;
-            self.proposals().set(proposal_id, &proposal);
-        }
-
-        let user_quorum = self.get_energy_amount_non_zero(&voter);
-        let voting_power = self.smoothing_function(&user_quorum);
+        let user_energy = self.get_energy_amount_non_zero(&voter);
 
         match vote {
             VoteType::UpVote => {
                 self.proposal_votes(proposal_id).update(|proposal_votes| {
-                    proposal_votes.up_votes += &voting_power.clone();
-                    proposal_votes.quorum += &user_quorum.clone();
+                    proposal_votes.up_votes += &user_energy.clone();
                 });
-                self.up_vote_cast_event(&voter, proposal_id, &voting_power, &user_quorum);
+                self.up_vote_cast_event(&voter, proposal_id, &user_energy);
             }
             VoteType::DownVote => {
                 self.proposal_votes(proposal_id).update(|proposal_votes| {
-                    proposal_votes.down_votes += &voting_power.clone();
-                    proposal_votes.quorum += &user_quorum.clone();
+                    proposal_votes.down_votes += &user_energy.clone();
                 });
-                self.down_vote_cast_event(&voter, proposal_id, &voting_power, &user_quorum);
+                self.down_vote_cast_event(&voter, proposal_id, &user_energy);
             }
             VoteType::DownVetoVote => {
                 self.proposal_votes(proposal_id).update(|proposal_votes| {
-                    proposal_votes.down_veto_votes += &voting_power.clone();
-                    proposal_votes.quorum += &user_quorum.clone();
+                    proposal_votes.down_veto_votes += &user_energy.clone();
                 });
-                self.down_veto_vote_cast_event(&voter, proposal_id, &voting_power, &user_quorum);
+                self.down_veto_vote_cast_event(&voter, proposal_id, &user_energy);
             }
             VoteType::AbstainVote => {
                 self.proposal_votes(proposal_id).update(|proposal_votes| {
-                    proposal_votes.abstain_votes += &voting_power.clone();
-                    proposal_votes.quorum += &user_quorum.clone();
+                    proposal_votes.abstain_votes += &user_energy.clone();
                 });
-                self.abstain_vote_cast_event(&voter, proposal_id, &voting_power, &user_quorum);
+                self.abstain_vote_cast_event(&voter, proposal_id, &user_energy);
             }
         }
     }
 
-    /// Cancel a proposed action. This can be done only during Pending status
+    /// Queue a proposal for execution.
+    /// This can be done only if the proposal has reached the quorum.
+    /// A proposal is considered successful and ready for queing if
+    /// total_votes + total_downvotes >= quorum && total_votes > total_downvotes
+    /// i.e. at least 50% + 1 of the people voted "yes".
+    ///
+    /// Additionally, all the required payments must be deposited before calling this endpoint.
+    #[endpoint]
+    fn queue(&self, proposal_id: ProposalId) {
+        self.require_caller_not_self();
+        require!(
+            self.get_proposal_status(proposal_id) == GovernanceProposalStatus::Succeeded,
+            "Can only queue succeeded proposals"
+        );
+
+        let current_block = self.blockchain().get_block_nonce();
+        self.proposal_queue_block(proposal_id).set(current_block);
+
+        self.proposal_queued_event(proposal_id, current_block);
+    }
+
+    /// Execute a previously queued proposal.
+    /// This will also clear the proposal from storage.
+    #[endpoint]
+    fn execute(&self, proposal_id: ProposalId) {
+        self.require_caller_not_self();
+        require!(
+            self.get_proposal_status(proposal_id) == GovernanceProposalStatus::Queued,
+            "Can only execute queued proposals"
+        );
+
+        let current_block = self.blockchain().get_block_nonce();
+        let lock_blocks = self.lock_time_after_voting_ends_in_blocks().get();
+
+        let lock_start = self.proposal_queue_block(proposal_id).get();
+        let lock_end = lock_start + lock_blocks;
+
+        require!(
+            current_block >= lock_end,
+            "Proposal is in timelock status. Try again later"
+        );
+
+        let proposal = self.proposals().get(proposal_id);
+        let total_gas_needed = self.total_gas_needed(&proposal.actions);
+        let gas_left = self.blockchain().get_gas_left();
+
+        require!(
+            gas_left > total_gas_needed,
+            "Not enough gas to execute all proposals"
+        );
+
+        self.clear_proposal(proposal_id);
+
+        for action in proposal.actions {
+            let mut contract_call = self
+                .send()
+                .contract_call::<()>(action.dest_address, action.function_name)
+                .with_gas_limit(action.gas_limit);
+
+            for arg in &action.arguments {
+                contract_call.push_arg_managed_buffer(arg);
+            }
+
+            contract_call.transfer_execute();
+        }
+
+        self.proposal_executed_event(proposal_id);
+    }
+
+    /// Cancel a proposed action. This can be done:
+    /// - by the proposer, at any time
+    /// - by anyone, if the proposal was defeated
     #[endpoint]
     fn cancel(&self, proposal_id: ProposalId) {
+        self.require_caller_not_self();
+
         match self.get_proposal_status(proposal_id) {
             GovernanceProposalStatus::None => {
-                sc_panic!(NO_PROPOSAL);
+                sc_panic!("Proposal does not exist");
             }
             GovernanceProposalStatus::Pending => {
                 let proposal = self.proposals().get(proposal_id);
                 let caller = self.blockchain().get_caller();
 
-                require!(caller == proposal.proposer, ONLY_PROPOSER_CANCEL);
-                self.refund_proposal_fee(&proposal, &proposal.fee_payment.amount);
-                self.clear_proposal(proposal_id);
-                self.proposal_canceled_event(proposal_id);
+                require!(
+                    caller == proposal.proposer,
+                    "Only original proposer may cancel a pending proposal"
+                );
+            }
+            GovernanceProposalStatus::Defeated => {}
+            GovernanceProposalStatus::WaitingForFees => {
+                self.refund_payments(proposal_id);
             }
             _ => {
                 sc_panic!("Action may not be cancelled");
             }
         }
-    }
 
-    /// When a proposal was defeated, the proposer can withdraw
-    /// If DefeatedWithVeto only part of the fee  can be withdrawn
-    #[endpoint(withdrawDeposit)]
-    fn withdraw_deposit(&self, proposal_id: ProposalId) {
-        let caller = self.blockchain().get_caller();
-
-        match self.get_proposal_status(proposal_id) {
-            GovernanceProposalStatus::None => {
-                sc_panic!(NO_PROPOSAL);
-            }
-            GovernanceProposalStatus::Succeeded | GovernanceProposalStatus::Defeated => {
-                let mut proposal = self.proposals().get(proposal_id);
-
-                require!(caller == proposal.proposer, ONLY_PROPOSER_WITHDRAW);
-                require!(!proposal.fee_withdrawn, FEE_ALREADY_WITHDRAWN);
-
-                self.refund_proposal_fee(&proposal, &proposal.fee_payment.amount);
-                proposal.fee_withdrawn = true;
-                self.proposals().set(proposal_id, &proposal);
-            }
-            GovernanceProposalStatus::DefeatedWithVeto => {
-                let mut proposal = self.proposals().get(proposal_id);
-
-                require!(!proposal.fee_withdrawn, FEE_ALREADY_WITHDRAWN);
-
-                let refund_percentage = BigUint::from(proposal.withdraw_percentage_defeated);
-                let refund_amount =
-                    refund_percentage * proposal.fee_payment.amount.clone() / FULL_PERCENTAGE;
-
-                // Burn remaining fees
-                let remaining_fee = proposal.fee_payment.amount.clone() - refund_amount.clone();
-                self.send().dct_non_zero_local_burn(
-                    &proposal.fee_payment.token_identifier,
-                    proposal.fee_payment.token_nonce,
-                    &remaining_fee,
-                );
-
-                // Mark this proposal that fee is withdrawn
-                self.refund_proposal_fee(&proposal, &refund_amount);
-                proposal.fee_withdrawn = true;
-                self.proposals().set(proposal_id, &proposal);
-            }
-            _ => {
-                sc_panic!(WITHDRAW_NOT_ALLOWED);
-            }
-        }
-        self.proposal_withdraw_after_defeated_event(proposal_id);
+        self.clear_proposal(proposal_id);
+        self.proposal_canceled_event(proposal_id);
     }
 
     fn total_gas_needed(
@@ -300,18 +304,17 @@ pub trait GovernanceV2:
         total
     }
 
-    fn refund_proposal_fee(
-        &self,
-        proposal: &GovernanceProposal<Self::Api>,
-        refund_amount: &BigUint,
-    ) {
-        self.send().direct_non_zero_dct_payment(
-            &proposal.proposer,
-            &DctTokenPayment::new(
-                proposal.fee_payment.token_identifier.clone(),
-                proposal.fee_payment.token_nonce,
-                refund_amount.clone(),
-            ),
-        );
+    fn refund_payments(&self, proposal_id: ProposalId) {
+        let payments = self.proposals().get(proposal_id).fees;
+
+        for fee_entry in payments.entries.iter() {
+            let payment = fee_entry.tokens;
+            self.send().direct_dct(
+                &fee_entry.depositor_addr,
+                &payment.token_identifier,
+                payment.token_nonce,
+                &payment.amount,
+            );
+        }
     }
 }

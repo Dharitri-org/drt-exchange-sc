@@ -1,8 +1,8 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 pub const MAX_PERCENTAGE: u64 = 10_000_000_000_000; // 100%
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait CommonStorageModule {
     #[view(getLaunchedTokenId)]
     #[storage_mapper("launchedTokenId")]

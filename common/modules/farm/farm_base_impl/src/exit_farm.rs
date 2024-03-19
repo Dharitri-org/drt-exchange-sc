@@ -1,6 +1,6 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-use crate::base_traits_impl::FarmContract;
+use crate::{base_traits_impl::FarmContract, dharitri_codec::TopEncode};
 use contexts::{
     exit_farm_context::ExitFarmContext,
     storage_cache::{FarmContracTraitBounds, StorageCache},
@@ -18,7 +18,7 @@ where
     pub reward_payment: DctTokenPayment<C::Api>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait BaseExitFarmModule:
     rewards::RewardsModule
     + config::ConfigModule
@@ -26,7 +26,8 @@ pub trait BaseExitFarmModule:
     + farm_token::FarmTokenModule
     + pausable::PausableModule
     + permissions_module::PermissionsModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + events::EventsModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::base_farm_validation::BaseFarmValidationModule
     + utils::UtilsModule
 {
@@ -39,7 +40,7 @@ pub trait BaseExitFarmModule:
         self.validate_contract_state(storage_cache.contract_state, &storage_cache.farm_token_id);
 
         let exit_farm_context = ExitFarmContext::<Self::Api, FC::AttributesType>::new(
-            payment.clone(),
+            payment,
             &storage_cache.farm_token_id,
             self.blockchain(),
         );
@@ -61,8 +62,6 @@ pub trait BaseExitFarmModule:
             &storage_cache,
         );
         storage_cache.reward_reserve -= &reward;
-
-        FC::decrease_user_farm_position(self, &payment);
 
         let farming_token_amount = token_attributes.get_total_supply();
         let farming_token_payment = DctTokenPayment::new(

@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::{
     common_storage::MAX_PERCENTAGE,
@@ -16,14 +16,14 @@ static INVALID_PAYMENT_ERR_MSG: &[u8] = b"Invalid payment token";
 static BELOW_MIN_PRICE_ERR_MSG: &[u8] = b"Launched token below min price";
 const MAX_TOKEN_DECIMALS: u32 = 18;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait PriceDiscovery:
     common_storage::CommonStorageModule
     + events::EventsModule
     + locking_module::locking_module::LockingModule
     + phase::PhaseModule
     + redeem_token::RedeemTokenModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     /// For explanations regarding what each parameter means, please refer to docs/setup.md
     #[init]
@@ -112,9 +112,6 @@ pub trait PriceDiscovery:
 
         self.set_locking_sc_address(locking_sc_address);
     }
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     /// Users can deposit either launched_token or accepted_token.
     /// They will receive an SFT that can be used to withdraw said tokens

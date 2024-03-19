@@ -1,10 +1,10 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 pub mod farm_deploy;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait ProxyDeployer: farm_deploy::FarmDeployModule {
     #[init]
     fn init(&self, farm_template_address: ManagedAddress) {
@@ -15,7 +15,4 @@ pub trait ProxyDeployer: farm_deploy::FarmDeployModule {
 
         self.farm_template_address().set(&farm_template_address);
     }
-
-    #[endpoint]
-    fn upgrade(&self) {}
 }

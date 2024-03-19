@@ -1,24 +1,21 @@
-#![allow(deprecated)]
-
 mod proxy_dex_test_setup;
 
-use energy_factory::{energy::EnergyModule, SimpleLockEnergy};
-use energy_query::Energy;
-use dharitri_sc::{
-    codec::{multi_types::OptionalValue, Empty},
+use dharitri_wasm::{
+    dharitri_codec::Empty,
     types::{BigInt, DctTokenPayment},
 };
-use dharitri_sc_scenario::{
-    managed_address, managed_biguint, managed_token_id, managed_token_id_wrapped, rust_biguint,
-    whitebox_legacy::TxTokenTransfer, DebugApi,
+use dharitri_wasm_debug::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint, tx_mock::TxInputDCT,
+    DebugApi,
 };
+use energy_factory::energy::EnergyModule;
+use energy_query::Energy;
 use num_traits::ToPrimitive;
 use proxy_dex::{
     proxy_pair::ProxyPairModule, wrapped_lp_attributes::WrappedLpTokenAttributes,
     wrapped_lp_token_merge::WrappedLpTokenMerge,
 };
 use proxy_dex_test_setup::*;
-use simple_lock::locked_token::LockedTokenAttributes;
 
 #[test]
 fn setup_test() {
@@ -46,12 +43,12 @@ fn add_remove_liquidity_proxy_test() {
 
     // set the price to 1 MOAX = 2 MEX
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: locked_token_amount.clone(),
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: other_token_amount.clone(),
@@ -244,12 +241,12 @@ fn tripple_add_liquidity_proxy_test() {
 
     // set the price to 1 MOAX = 2 MEX
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: locked_token_amount1.clone(),
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: other_token_amount.clone(),
@@ -327,12 +324,12 @@ fn tripple_add_liquidity_proxy_test() {
     );
 
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: locked_token_amount2,
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: other_token_amount.clone(),
@@ -413,12 +410,12 @@ fn tripple_add_liquidity_proxy_test() {
 
     // Third add liquidity
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: locked_token_amount1.clone(),
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: other_token_amount2,
@@ -497,7 +494,7 @@ fn tripple_add_liquidity_proxy_test() {
 }
 
 #[test]
-fn wrapped_same_nonce_lp_token_merge_test() {
+fn wrapped_lp_token_merge_test() {
     let mut setup = ProxySetup::new(
         proxy_dex::contract_obj,
         pair::contract_obj,
@@ -510,12 +507,12 @@ fn wrapped_same_nonce_lp_token_merge_test() {
 
     // set the price to 1 MOAX = 2 MEX
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: locked_token_amount.clone(),
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: other_token_amount.clone(),
@@ -539,15 +536,15 @@ fn wrapped_same_nonce_lp_token_merge_test() {
     let first_amount = rust_biguint!(150_000_000);
     let second_amount = rust_biguint!(250_000_000);
     let tokens_to_merge = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WRAPPED_LP_TOKEN_ID.to_vec(),
             nonce: 1,
-            value: first_amount.clone(),
+            value: first_amount,
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WRAPPED_LP_TOKEN_ID.to_vec(),
             nonce: 1,
-            value: second_amount.clone(),
+            value: second_amount,
         },
     ];
 
@@ -566,378 +563,11 @@ fn wrapped_same_nonce_lp_token_merge_test() {
         Some(&WrappedLpTokenAttributes::<DebugApi> {
             locked_tokens: DctTokenPayment {
                 token_identifier: managed_token_id!(LOCKED_TOKEN_ID),
-                token_nonce: 1,
+                token_nonce: 3,
                 amount: managed_biguint!(800_001_600), // out of 1_000_000_000
             },
             lp_token_id: managed_token_id!(LP_TOKEN_ID),
             lp_token_amount: managed_biguint!(400_000_000),
         }),
     );
-
-    let liquidity_token_amount = (&first_amount + &second_amount) * rust_biguint!(2u64); // parity 1 MOAX -> 2 MEX
-    let expected_locked_token_balance_before = rust_biguint!(USER_BALANCE) - locked_token_amount;
-    let expected_locked_token_balance_after =
-        &expected_locked_token_balance_before + &liquidity_token_amount;
-
-    setup.b_mock.check_nft_balance(
-        &first_user,
-        LOCKED_TOKEN_ID,
-        1,
-        &(expected_locked_token_balance_before),
-        Some(&LockedTokenAttributes::<DebugApi> {
-            original_token_id: managed_token_id_wrapped!(MEX_TOKEN_ID),
-            original_token_nonce: 0,
-            unlock_epoch: LOCK_OPTIONS[0],
-        }),
-    );
-
-    setup
-        .b_mock
-        .execute_dct_transfer(
-            &first_user,
-            &setup.proxy_wrapper,
-            WRAPPED_LP_TOKEN_ID,
-            2,
-            &(first_amount + second_amount),
-            |sc| {
-                sc.remove_liquidity_proxy(
-                    managed_address!(&pair_addr),
-                    managed_biguint!(1),
-                    managed_biguint!(1),
-                );
-            },
-        )
-        .assert_ok();
-
-    setup.b_mock.check_nft_balance(
-        &first_user,
-        LOCKED_TOKEN_ID,
-        1,
-        &expected_locked_token_balance_after,
-        Some(&LockedTokenAttributes::<DebugApi> {
-            original_token_id: managed_token_id_wrapped!(MEX_TOKEN_ID),
-            original_token_nonce: 0,
-            unlock_epoch: LOCK_OPTIONS[0],
-        }),
-    );
-}
-
-#[test]
-fn wrapped_different_nonce_lp_token_merge_test() {
-    let mut setup = ProxySetup::new(
-        proxy_dex::contract_obj,
-        pair::contract_obj,
-        farm_with_locked_rewards::contract_obj,
-        energy_factory::contract_obj,
-    );
-    let user = setup.first_user.clone();
-    let user_balance = rust_biguint!(USER_BALANCE);
-    setup
-        .b_mock
-        .set_dct_balance(&user, MEX_TOKEN_ID, &user_balance);
-
-    // users lock tokens
-    setup
-        .b_mock
-        .execute_dct_transfer(
-            &user,
-            &setup.simple_lock_wrapper,
-            MEX_TOKEN_ID,
-            0,
-            &user_balance,
-            |sc| {
-                let user_payment = sc.lock_tokens_endpoint(LOCK_OPTIONS[1], OptionalValue::None);
-                assert_eq!(user_payment.token_nonce, 2);
-                assert_eq!(user_payment.amount, managed_biguint!(USER_BALANCE));
-            },
-        )
-        .assert_ok();
-
-    let locked_token_amount = rust_biguint!(1_000_000_000);
-    let other_token_amount = rust_biguint!(500_000_000);
-
-    // set the price to 1 MOAX = 2 MEX
-    let payments1 = vec![
-        TxTokenTransfer {
-            token_identifier: LOCKED_TOKEN_ID.to_vec(),
-            nonce: 1,
-            value: locked_token_amount.clone(), // for MIN_LP_AMOUNT
-        },
-        TxTokenTransfer {
-            token_identifier: WMOAX_TOKEN_ID.to_vec(),
-            nonce: 0,
-            value: other_token_amount.clone(), // for MIN_LP_AMOUNT
-        },
-    ];
-
-    // add liquidity
-    let pair_addr = setup.pair_wrapper.address_ref().clone();
-    setup
-        .b_mock
-        .execute_dct_multi_transfer(&user, &setup.proxy_wrapper, &payments1, |sc| {
-            let output_lp_token = sc.add_liquidity_proxy(
-                managed_address!(&pair_addr),
-                managed_biguint!(locked_token_amount.to_u64().unwrap()),
-                managed_biguint!(other_token_amount.to_u64().unwrap()),
-            );
-
-            assert_eq!(output_lp_token.to_vec().get(0).token_nonce, 1);
-            assert_eq!(
-                output_lp_token.to_vec().get(0).amount,
-                managed_biguint!(500_000_000u64 - 1_000u64)
-            );
-        })
-        .assert_ok();
-
-    // set the price to 1 MOAX = 2 MEX
-    let payments2 = vec![
-        TxTokenTransfer {
-            token_identifier: LOCKED_TOKEN_ID.to_vec(),
-            nonce: 2,
-            value: locked_token_amount.clone(),
-        },
-        TxTokenTransfer {
-            token_identifier: WMOAX_TOKEN_ID.to_vec(),
-            nonce: 0,
-            value: other_token_amount.clone(),
-        },
-    ];
-
-    // add liquidity
-    let pair_addr = setup.pair_wrapper.address_ref().clone();
-    setup
-        .b_mock
-        .execute_dct_multi_transfer(&user, &setup.proxy_wrapper, &payments2, |sc| {
-            let output_lp_token = sc.add_liquidity_proxy(
-                managed_address!(&pair_addr),
-                managed_biguint!(locked_token_amount.to_u64().unwrap()),
-                managed_biguint!(other_token_amount.to_u64().unwrap()),
-            );
-            assert_eq!(output_lp_token.to_vec().get(0).token_nonce, 2);
-            assert_eq!(
-                output_lp_token.to_vec().get(0).amount,
-                managed_biguint!(500_000_000u64)
-            );
-        })
-        .assert_ok();
-
-    let min_lp_amount = 1_000u64;
-    let first_amount = other_token_amount.clone() - rust_biguint!(min_lp_amount);
-    let second_amount = other_token_amount.clone();
-    let user_lp_amount = 999_999_000u64; // first_amount + second_amount;
-    let tokens_to_merge = vec![
-        TxTokenTransfer {
-            token_identifier: WRAPPED_LP_TOKEN_ID.to_vec(),
-            nonce: 1,
-            value: first_amount,
-        },
-        TxTokenTransfer {
-            token_identifier: WRAPPED_LP_TOKEN_ID.to_vec(),
-            nonce: 2,
-            value: second_amount,
-        },
-    ];
-
-    setup
-        .b_mock
-        .execute_dct_multi_transfer(&user, &setup.proxy_wrapper, &tokens_to_merge, |sc| {
-            let output_lp_token = sc.merge_wrapped_lp_tokens_endpoint();
-            assert_eq!(output_lp_token.token_nonce, 3);
-            assert_eq!(output_lp_token.amount, managed_biguint!(user_lp_amount));
-        })
-        .assert_ok();
-
-    setup.b_mock.check_nft_balance(
-        &user,
-        WRAPPED_LP_TOKEN_ID,
-        3,
-        &rust_biguint!(user_lp_amount),
-        Some(&WrappedLpTokenAttributes::<DebugApi> {
-            locked_tokens: DctTokenPayment {
-                token_identifier: managed_token_id!(LOCKED_TOKEN_ID),
-                token_nonce: 3,
-                amount: managed_biguint!(2_000_000_000u64),
-            },
-            lp_token_id: managed_token_id!(LP_TOKEN_ID),
-            lp_token_amount: managed_biguint!(1_000_000_000u64 - min_lp_amount),
-        }),
-    );
-
-    let min_locked_lp_token_amount = rust_biguint!(min_lp_amount);
-    let expected_locked_token_balance =
-        &(locked_token_amount - min_locked_lp_token_amount) * rust_biguint!(2); // parity 1 MOAX -> 2 MEX
-
-    setup
-        .b_mock
-        .execute_dct_transfer(
-            &user,
-            &setup.proxy_wrapper,
-            WRAPPED_LP_TOKEN_ID,
-            3,
-            &rust_biguint!(user_lp_amount),
-            |sc| {
-                sc.remove_liquidity_proxy(
-                    managed_address!(&pair_addr),
-                    managed_biguint!(1),
-                    managed_biguint!(1),
-                );
-            },
-        )
-        .assert_ok();
-
-    let expected_unlock_epoch = (LOCK_OPTIONS[0] + LOCK_OPTIONS[1]) / 2;
-    setup.b_mock.check_nft_balance(
-        &user,
-        LOCKED_TOKEN_ID,
-        3,
-        &expected_locked_token_balance,
-        Some(&LockedTokenAttributes::<DebugApi> {
-            original_token_id: managed_token_id_wrapped!(MEX_TOKEN_ID),
-            original_token_nonce: 0,
-            unlock_epoch: expected_unlock_epoch,
-        }),
-    );
-}
-
-#[test]
-fn increase_proxy_lp_token_energy() {
-    let mut setup = ProxySetup::new(
-        proxy_dex::contract_obj,
-        pair::contract_obj,
-        farm_with_locked_rewards::contract_obj,
-        energy_factory::contract_obj,
-    );
-    let first_user = setup.first_user.clone();
-    let full_balance = rust_biguint!(USER_BALANCE);
-    let locked_token_amount = rust_biguint!(1_000_000_000);
-    let other_token_amount = rust_biguint!(500_000_000);
-    let expected_lp_token_amount = rust_biguint!(499_999_000);
-
-    // set the price to 1 MOAX = 2 MEX
-    let payments = vec![
-        TxTokenTransfer {
-            token_identifier: LOCKED_TOKEN_ID.to_vec(),
-            nonce: 1,
-            value: locked_token_amount.clone(),
-        },
-        TxTokenTransfer {
-            token_identifier: WMOAX_TOKEN_ID.to_vec(),
-            nonce: 0,
-            value: other_token_amount.clone(),
-        },
-    ];
-
-    // add liquidity
-    let pair_addr = setup.pair_wrapper.address_ref().clone();
-    setup
-        .b_mock
-        .execute_dct_multi_transfer(&first_user, &setup.proxy_wrapper, &payments, |sc| {
-            sc.add_liquidity_proxy(
-                managed_address!(&pair_addr),
-                managed_biguint!(locked_token_amount.to_u64().unwrap()),
-                managed_biguint!(other_token_amount.to_u64().unwrap()),
-            );
-        })
-        .assert_ok();
-
-    // check user's balance
-    setup.b_mock.check_nft_balance::<Empty>(
-        &first_user,
-        LOCKED_TOKEN_ID,
-        1,
-        &(&full_balance - &locked_token_amount),
-        None,
-    );
-    setup.b_mock.check_dct_balance(
-        &first_user,
-        WMOAX_TOKEN_ID,
-        &(&full_balance - &other_token_amount),
-    );
-    setup.b_mock.check_nft_balance(
-        &first_user,
-        WRAPPED_LP_TOKEN_ID,
-        1,
-        &expected_lp_token_amount,
-        Some(&WrappedLpTokenAttributes::<DebugApi> {
-            locked_tokens: DctTokenPayment {
-                token_identifier: managed_token_id!(LOCKED_TOKEN_ID),
-                token_nonce: 1,
-                amount: managed_biguint!(locked_token_amount.to_u64().unwrap()),
-            },
-            lp_token_id: managed_token_id!(LP_TOKEN_ID),
-            lp_token_amount: managed_biguint!(expected_lp_token_amount.to_u64().unwrap()),
-        }),
-    );
-
-    let block_epoch = 1;
-    let user_locked_tokens_in_lp = locked_token_amount.to_u64().unwrap();
-
-    // check user energy before
-    setup
-        .b_mock
-        .execute_query(&setup.simple_lock_wrapper, |sc| {
-            let lock_epochs = LOCK_OPTIONS[0] - block_epoch;
-            let expected_energy_amount =
-                BigInt::from((USER_BALANCE) as i64) * BigInt::from(lock_epochs as i64);
-            let expected_energy = Energy::new(
-                expected_energy_amount,
-                block_epoch,
-                managed_biguint!(USER_BALANCE),
-            );
-            let actual_energy = sc.user_energy(&managed_address!(&first_user)).get();
-            assert_eq!(expected_energy, actual_energy);
-        })
-        .assert_ok();
-
-    // call increase energy
-    setup
-        .b_mock
-        .execute_dct_transfer(
-            &setup.first_user,
-            &setup.proxy_wrapper,
-            WRAPPED_LP_TOKEN_ID,
-            1,
-            &expected_lp_token_amount,
-            |sc| {
-                let _ = sc.increase_proxy_pair_token_energy_endpoint(LOCK_OPTIONS[1]);
-            },
-        )
-        .assert_ok();
-
-    // chceck new wrapped lp token
-    setup.b_mock.check_nft_balance(
-        &first_user,
-        WRAPPED_LP_TOKEN_ID,
-        2,
-        &expected_lp_token_amount,
-        Some(&WrappedLpTokenAttributes::<DebugApi> {
-            locked_tokens: DctTokenPayment {
-                token_identifier: managed_token_id!(LOCKED_TOKEN_ID),
-                token_nonce: 2,
-                amount: managed_biguint!(locked_token_amount.to_u64().unwrap()),
-            },
-            lp_token_id: managed_token_id!(LP_TOKEN_ID),
-            lp_token_amount: managed_biguint!(expected_lp_token_amount.to_u64().unwrap()),
-        }),
-    );
-
-    // check user energy after
-    setup
-        .b_mock
-        .execute_query(&setup.simple_lock_wrapper, |sc| {
-            let first_lock_epochs = LOCK_OPTIONS[1] - block_epoch;
-            let second_lock_epochs = LOCK_OPTIONS[0] - block_epoch;
-            let expected_energy_amount = BigInt::from((user_locked_tokens_in_lp) as i64)
-                * BigInt::from(first_lock_epochs as i64)
-                + BigInt::from((USER_BALANCE - user_locked_tokens_in_lp) as i64)
-                    * BigInt::from(second_lock_epochs as i64);
-            let expected_energy = Energy::new(
-                expected_energy_amount,
-                block_epoch,
-                managed_biguint!(USER_BALANCE),
-            );
-            let actual_energy = sc.user_energy(&managed_address!(&first_user)).get();
-            assert_eq!(expected_energy, actual_energy);
-        })
-        .assert_ok();
 }

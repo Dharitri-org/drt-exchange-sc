@@ -1,3 +1,3 @@
 fn main() {
-    dharitri_sc_meta::cli_main::<proxy_dex::AbiProvider>();
+    dharitri_wasm_debug::meta::perform::<proxy_dex::AbiProvider>();
 }

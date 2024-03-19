@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 pub mod events;
 pub mod locked_asset_token;
@@ -10,7 +10,7 @@ use locked_asset_token::UserEntry;
 pub type SnapshotEntry<M> = MultiValue2<ManagedAddress<M>, BigUint<M>>;
 pub const UNBOND_EPOCHS: u64 = 3;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait MetabondingStaking:
     locked_asset_token::LockedAssetTokenModule + events::EventsModule
 {
@@ -26,13 +26,10 @@ pub trait MetabondingStaking:
             .set_if_empty(&locked_asset_factory_address);
     }
 
-    #[endpoint]
-    fn upgrade(&self) {}
-
     #[payable("*")]
     #[endpoint(stakeLockedAsset)]
     fn stake_locked_asset(&self) {
-        let payments = self.call_value().all_dct_transfers().clone_value();
+        let payments = self.call_value().all_dct_transfers();
         self.require_all_locked_asset_payments(&payments);
 
         let caller = self.blockchain().get_caller();
@@ -77,7 +74,7 @@ pub trait MetabondingStaking:
         require!(!entry_mapper.is_empty(), "Must stake first");
 
         let mut user_entry: UserEntry<Self::Api> = entry_mapper.get();
-        let unstake_amount = user_entry.unstake_amount;
+        let unstake_amount = user_entry.unstake_amount.clone();
         require!(unstake_amount > 0, "Must unstake first");
 
         let current_epoch = self.blockchain().get_block_epoch();

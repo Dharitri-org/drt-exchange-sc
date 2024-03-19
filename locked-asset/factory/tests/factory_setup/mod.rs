@@ -1,19 +1,18 @@
 #![allow(dead_code)]
-#![allow(deprecated)]
 
 use common_structs::UnlockMilestone;
-use energy_factory::SimpleLockEnergy;
-use factory::{
-    locked_asset::LockedAssetModule, migration::LockedTokenMigrationModule, LockedAssetFactory,
-};
-use dharitri_sc::{
+use dharitri_wasm::{
     storage::mappers::StorageTokenWrapper,
     types::{Address, DctLocalRole, MultiValueEncoded},
 };
-use dharitri_sc_scenario::{
+use dharitri_wasm_debug::{
     managed_address, managed_token_id, rust_biguint,
-    whitebox_legacy::{BlockchainStateWrapper, ContractObjWrapper},
+    testing_framework::{BlockchainStateWrapper, ContractObjWrapper},
     DebugApi,
+};
+use energy_factory::SimpleLockEnergy;
+use factory::{
+    locked_asset::LockedAssetModule, migration::LockedTokenMigrationModule, LockedAssetFactory,
 };
 use simple_lock::locked_token::LockedTokenModule;
 
@@ -50,7 +49,7 @@ where
         factory_builder: FactoryBuilder,
         energy_factory_builder: EnergyFactoryBuilder,
     ) -> Self {
-        DebugApi::dummy();
+        let _ = DebugApi::dummy();
         let rust_zero = rust_biguint!(0u64);
         let mut b_mock = BlockchainStateWrapper::new();
         let owner = b_mock.create_user_account(&rust_zero);

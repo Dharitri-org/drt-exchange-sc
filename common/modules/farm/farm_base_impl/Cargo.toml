@@ -1,8 +1,8 @@
 [package]
 name = "farm_base_impl"
 version = "0.0.0"
-authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
-edition = "2021"
+authors = [ "catalin-neagu <catalin.neagu@dharitri.com>",]
+edition = "2018"
 
 [lib]
 path = "src/lib.rs"
@@ -49,12 +49,12 @@ path = "../../../traits/mergeable"
 [dependencies.fixed-supply-token]
 path = "../../../traits/fixed-supply-token"
 
-[dependencies.dharitri-sc]
-version = "=0.13.6"
-features = ["dct-token-payment-legacy-decode"]
+[dependencies.dharitri-wasm]
+version = "=0.10.6"
+features = ["dct-token-payment-legacy-decode",]
 
-[dependencies.dharitri-sc-modules]
-version = "=0.13.6"
+[dependencies.dharitri-wasm-modules]
+version = "=0.10.6"
 
-[dev-dependencies.dharitri-sc-scenario]
-version = "=0.13.6"
+[dev-dependencies.dharitri-wasm-debug]
+version = "=0.10.6"

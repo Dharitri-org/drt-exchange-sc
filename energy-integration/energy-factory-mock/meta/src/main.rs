@@ -1,3 +1,3 @@
 fn main() {
-    dharitri_sc_meta::cli_main::<energy_factory_mock::AbiProvider>();
+    dharitri_wasm_debug::meta::perform::<energy_factory_mock::AbiProvider>();
 }

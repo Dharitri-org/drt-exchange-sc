@@ -1,17 +1,15 @@
-#![allow(deprecated)]
-
-use dharitri_sc::codec::Empty;
-use dharitri_sc::types::{Address, DctLocalRole};
-use dharitri_sc_scenario::whitebox_legacy::TxResult;
-use dharitri_sc_scenario::{
-    managed_address, managed_biguint, managed_token_id_wrapped, whitebox_legacy::*,
+use dharitri_wasm::dharitri_codec::Empty;
+use dharitri_wasm::types::{Address, DctLocalRole};
+use dharitri_wasm_debug::tx_mock::TxResult;
+use dharitri_wasm_debug::{
+    managed_address, managed_biguint, managed_token_id_wrapped, testing_framework::*,
 };
-use dharitri_sc_scenario::{managed_token_id, rust_biguint, DebugApi};
+use dharitri_wasm_debug::{managed_token_id, rust_biguint, DebugApi};
 
 use price_discovery::redeem_token::*;
 use price_discovery::*;
 
-use dharitri_sc::storage::mappers::StorageTokenWrapper;
+use dharitri_wasm::storage::mappers::StorageTokenWrapper;
 use simple_lock::locked_token::LockedTokenModule;
 use simple_lock::SimpleLock;
 

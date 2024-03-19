@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod test {
-    #![allow(deprecated)]
 
-    dharitri_sc::imports!();
-    dharitri_sc::derive_imports!();
+    dharitri_wasm::imports!();
+    dharitri_wasm::derive_imports!();
 
     use std::time::SystemTime;
 
@@ -13,7 +12,7 @@ mod test {
     use crate::fuzz_pair::fuzz_pair_test::*;
     use crate::fuzz_price_discovery::fuzz_price_discovery_test::*;
 
-    use dharitri_sc_scenario::DebugApi;
+    use dharitri_wasm_debug::DebugApi;
 
     use rand::distributions::weighted::WeightedIndex;
     use rand::prelude::*;

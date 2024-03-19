@@ -1,11 +1,13 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::{Epoch, EpochAmountPair};
 
 pub const MAX_MILESTONES_IN_SCHEDULE: usize = 64;
 pub const PERCENTAGE_TOTAL_EX: u64 = 100_000u64;
-pub const PRECISION_EX_INCREASE: u64 = 1_000u64; // From 1 to 1_000;
+
+pub const LOCKED_TOKEN_ACTIVATION_NONCE: u64 = 2_286_815u64;
+pub const UPDATE_PERCENTAGE_CONST: u64 = 1_000u64;
 
 #[derive(
     ManagedVecItem,
@@ -156,7 +158,7 @@ impl<M: ManagedTypeApi> LockedAssetTokenAttributes<M> {
         for unlock_milestone in self.unlock_schedule.unlock_milestones.into_iter() {
             let updated_milestone = UnlockMilestoneEx {
                 unlock_epoch: unlock_milestone.unlock_epoch,
-                unlock_percent: unlock_milestone.unlock_percent as u64 * PRECISION_EX_INCREASE,
+                unlock_percent: unlock_milestone.unlock_percent as u64 * UPDATE_PERCENTAGE_CONST,
             };
             updated_unlock_milestones.push(updated_milestone);
         }

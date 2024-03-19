@@ -1,7 +1,5 @@
-#![allow(deprecated)]
-
 use common_structs::FarmTokenAttributes;
-use dharitri_sc_scenario::{managed_address, managed_biguint, rust_biguint, DebugApi};
+use dharitri_wasm_debug::{managed_address, managed_biguint, rust_biguint, DebugApi};
 
 pub mod farm_setup;
 use farm_boosted_yields::boosted_yields_factors::BoostedYieldsFactorsModule;
@@ -13,7 +11,7 @@ use weekly_rewards_splitting::global_info::WeeklyRewardsGlobalInfo;
 
 #[test]
 fn farm_with_no_boost_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -111,7 +109,7 @@ fn farm_with_no_boost_test() {
 
 #[test]
 fn farm_with_boosted_yields_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -149,7 +147,7 @@ fn farm_with_boosted_yields_test() {
     farm_setup.set_user_energy(&second_user, 4_000, 6, 1);
     farm_setup.set_user_energy(&third_user, 1, 6, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 5, 1);
+    farm_setup.exit_farm(&third_user, 5, 1, 1);
 
     // advance 1 week
     farm_setup.b_mock.set_block_epoch(10);
@@ -223,7 +221,7 @@ fn farm_with_boosted_yields_test() {
 
 #[test]
 fn farm_change_boosted_yields_factors_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -286,7 +284,7 @@ fn farm_change_boosted_yields_factors_test() {
 
 #[test]
 fn farm_boosted_yields_claim_with_different_user_pos_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -338,7 +336,7 @@ fn farm_boosted_yields_claim_with_different_user_pos_test() {
     farm_setup.set_user_energy(&second_user, 4_000, 6, 1);
     farm_setup.set_user_energy(&third_user, 1, 6, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 5, 1);
+    farm_setup.exit_farm(&third_user, 5, 1, 1);
 
     // advance 1 week
     farm_setup.b_mock.set_block_epoch(10);
@@ -363,15 +361,11 @@ fn farm_boosted_yields_claim_with_different_user_pos_test() {
     );
 
     // second user claim with first user's pos
-    // user will receive both base and boosted rewards, as the claims uses his already saved total token amount
+    // user will only receive rewards for base farm, no boosted rewards
     let second_base_farm_amt = first_farm_token_amount * 7_500 / total_farm_tokens;
-    let second_boosted_rewards = 1_533;
     let second_receveived_reward_amt =
         farm_setup.claim_rewards(&second_user, 3, first_farm_token_amount);
-    assert_eq!(
-        second_receveived_reward_amt,
-        second_base_farm_amt + second_boosted_rewards
-    );
+    assert_eq!(second_receveived_reward_amt, second_base_farm_amt);
 
     farm_setup
         .b_mock
@@ -392,7 +386,7 @@ fn farm_boosted_yields_claim_with_different_user_pos_test() {
 
 #[test]
 fn farm_known_proxy_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -491,7 +485,7 @@ fn farm_known_proxy_test() {
 
 #[test]
 fn farm_multiple_claim_weeks_with_collect_undistributed_rewards_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -529,7 +523,7 @@ fn farm_multiple_claim_weeks_with_collect_undistributed_rewards_test() {
     farm_setup.set_user_energy(&second_user, 4_000, 6, 1);
     farm_setup.set_user_energy(&third_user, 1, 6, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 5, 1);
+    farm_setup.exit_farm(&third_user, 5, 1, 1);
 
     // advance 1 week
     farm_setup.b_mock.set_block_epoch(10);
@@ -610,7 +604,7 @@ fn farm_multiple_claim_weeks_with_collect_undistributed_rewards_test() {
     farm_setup.set_user_energy(&second_user, 4_000, 13, 1);
     farm_setup.set_user_energy(&third_user, 1, 13, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 8, 1);
+    farm_setup.exit_farm(&third_user, 8, 1, 1);
 
     // advance blocks - 10 blocks - 10 * 1_000 = 10_000 total rewards
     // 7_500 base farm, 2_500 boosted yields
@@ -622,7 +616,7 @@ fn farm_multiple_claim_weeks_with_collect_undistributed_rewards_test() {
     farm_setup.set_user_energy(&second_user, 4_000, 20, 1);
     farm_setup.set_user_energy(&third_user, 1, 20, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 9, 1);
+    farm_setup.exit_farm(&third_user, 9, 1, 1);
 
     // advance week
     farm_setup.b_mock.set_block_epoch(22);
@@ -741,7 +735,7 @@ fn farm_multiple_claim_weeks_with_collect_undistributed_rewards_test() {
 
 #[test]
 fn farm_enter_with_multiple_farm_token() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -779,7 +773,7 @@ fn farm_enter_with_multiple_farm_token() {
     farm_setup.set_user_energy(&second_user, 4_000, 6, 1);
     farm_setup.set_user_energy(&third_user, 1, 6, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 5, 1);
+    farm_setup.exit_farm(&third_user, 5, 1, 1);
 
     // advance 1 week
     farm_setup.b_mock.set_block_epoch(10);
@@ -856,7 +850,7 @@ fn farm_enter_with_multiple_farm_token() {
 
 #[test]
 fn farm_claim_with_minimum_tokens() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let mut farm_setup = MultiUserFarmSetup::new(
         farm::contract_obj,
         energy_factory_mock::contract_obj,
@@ -894,7 +888,7 @@ fn farm_claim_with_minimum_tokens() {
     farm_setup.set_user_energy(&second_user, 90_000, 6, 1);
     farm_setup.set_user_energy(&third_user, 1, 6, 1);
     farm_setup.enter_farm(&third_user, 1);
-    farm_setup.exit_farm(&third_user, 5, 1);
+    farm_setup.exit_farm(&third_user, 5, 1, 1);
 
     // advance 1 week
     farm_setup.b_mock.set_block_epoch(10);

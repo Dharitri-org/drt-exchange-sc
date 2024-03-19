@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use common_structs::Nonce;
 
@@ -10,9 +10,9 @@ pub struct WrappedTokenAttributes {
     pub locked_token_nonce: Nonce,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait WrappedTokenModule:
-    dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + simple_lock::token_attributes::TokenAttributesModule
 {
     #[only_owner]
@@ -24,7 +24,7 @@ pub trait WrappedTokenModule:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value().clone_value();
+        let payment_amount = self.call_value().moax_value();
 
         self.wrapped_token().issue_and_set_all_roles(
             DctTokenType::Meta,
@@ -52,27 +52,14 @@ pub trait WrappedTokenModule:
         );
     }
 
-    /// Removes the transfer role for the given address.
-    #[only_owner]
-    #[endpoint(unsetTransferRoleWrappedToken)]
-    fn unset_transfer_role(&self, address: ManagedAddress) {
-        let wrapped_token_id = self.wrapped_token().get_token_id();
-        let system_sc_proxy = DCTSystemSmartContractProxy::new_proxy_obj();
-        system_sc_proxy
-            .unset_special_roles(
-                &address,
-                &wrapped_token_id,
-                [DctLocalRole::Transfer][..].iter().cloned(),
-            )
-            .async_call()
-            .call_and_exit();
-    }
-
     fn wrap_locked_token_and_send(
         &self,
         caller: &ManagedAddress,
         token: DctTokenPayment,
     ) -> DctTokenPayment {
+        self.locked_token()
+            .require_same_token(&token.token_identifier);
+
         let wrapped_token_mapper = self.wrapped_token();
         let wrapped_token_attributes = WrappedTokenAttributes {
             locked_token_nonce: token.token_nonce,
@@ -86,11 +73,7 @@ pub trait WrappedTokenModule:
         wrapped_token_mapper.nft_add_quantity_and_send(caller, wrapped_token_nonce, token.amount)
     }
 
-    fn unwrap_locked_token(
-        &self,
-        locked_token_id: TokenIdentifier,
-        token: DctTokenPayment,
-    ) -> DctTokenPayment {
+    fn unwrap_locked_token(&self, token: DctTokenPayment) -> DctTokenPayment {
         let wrapped_token_mapper = self.wrapped_token();
         wrapped_token_mapper.require_same_token(&token.token_identifier);
 
@@ -100,6 +83,7 @@ pub trait WrappedTokenModule:
         self.send()
             .dct_local_burn(&token.token_identifier, token.token_nonce, &token.amount);
 
+        let locked_token_id = self.locked_token().get_token_id();
         DctTokenPayment::new(
             locked_token_id,
             wrapped_token_attributes.locked_token_nonce,
@@ -107,7 +91,11 @@ pub trait WrappedTokenModule:
         )
     }
 
+    #[view(getLockedTokenId)]
+    #[storage_mapper("lockedTokenId")]
+    fn locked_token(&self) -> NonFungibleTokenMapper<Self::Api>;
+
     #[view(getWrappedTokenId)]
     #[storage_mapper("wrappedTokenId")]
-    fn wrapped_token(&self) -> NonFungibleTokenMapper;
+    fn wrapped_token(&self) -> NonFungibleTokenMapper<Self::Api>;
 }

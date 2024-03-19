@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use factory::locked_asset_token_merge::ProxyTrait as _;
 
@@ -28,7 +28,7 @@ impl<M: ManagedTypeApi> UserEntry<M> {
     }
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LockedAssetTokenModule {
     fn require_all_locked_asset_payments(&self, payments: &PaymentsVec<Self::Api>) {
         require!(!payments.is_empty(), "No payments");

@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use common_structs::Epoch;
 
@@ -15,16 +15,16 @@ pub struct LockReduceResult<M: ManagedTypeApi> {
     pub energy: Energy<M>,
 }
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait UnlockWithPenaltyModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::energy::EnergyModule
     + crate::lock_options::LockOptionsModule
     + crate::events::EventsModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + crate::token_merging::TokenMergingModule
     + crate::penalty::LocalPenaltyModule
     + crate::unstake::UnstakeModule

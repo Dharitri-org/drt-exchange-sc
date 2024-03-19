@@ -1,8 +1,8 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::energy::Energy;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LockedTokenTransferModule:
     utils::UtilsModule + crate::energy::EnergyModule + crate::events::EventsModule
 {
@@ -41,5 +41,5 @@ pub trait LockedTokenTransferModule:
     }
 
     #[storage_mapper("tokenTransferWhitelist")]
-    fn token_transfer_whitelist(&self) -> WhitelistMapper<ManagedAddress>;
+    fn token_transfer_whitelist(&self) -> WhitelistMapper<Self::Api, ManagedAddress>;
 }

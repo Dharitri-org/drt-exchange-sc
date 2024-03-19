@@ -1,14 +1,13 @@
 #[cfg(test)]
 pub mod fuzz_farm_test {
-    #![allow(deprecated)]
 
-    dharitri_sc::imports!();
-    dharitri_sc::derive_imports!();
+    dharitri_wasm::imports!();
+    dharitri_wasm::derive_imports!();
 
     use std::cmp::Ordering;
 
-    use dharitri_sc_scenario::whitebox_legacy::TxTokenTransfer;
-    use dharitri_sc_scenario::{rust_biguint, DebugApi};
+    use dharitri_wasm_debug::tx_mock::TxInputDCT;
+    use dharitri_wasm_debug::{managed_biguint, rust_biguint, DebugApi};
 
     use crate::fuzz_data::fuzz_data_tests::*;
     use farm::*;
@@ -60,7 +59,7 @@ pub mod fuzz_farm_test {
         }
 
         let mut payments = Vec::new();
-        payments.push(TxTokenTransfer {
+        payments.push(TxInputDCT {
             token_identifier: lp_token_id.to_vec(),
             nonce: 0,
             value: farm_in_amount,
@@ -77,7 +76,7 @@ pub mod fuzz_farm_test {
                 );
 
                 if farm_token_amount > rust_zero {
-                    payments.push(TxTokenTransfer {
+                    payments.push(TxInputDCT {
                         token_identifier: farm_token_id.to_vec(),
                         nonce: *farm_token_nonce,
                         value: farm_token_amount.clone(),
@@ -179,7 +178,7 @@ pub mod fuzz_farm_test {
             farm_token_nonce,
             &farm_out_amount,
             |sc| {
-                sc.exit_farm_endpoint(OptionalValue::None);
+                sc.exit_farm_endpoint(managed_biguint!(seed), OptionalValue::None);
             },
         );
 
@@ -249,7 +248,7 @@ pub mod fuzz_farm_test {
                 );
 
                 if farm_token_amount > rust_zero {
-                    payments.push(TxTokenTransfer {
+                    payments.push(TxInputDCT {
                         token_identifier: farm_token_id.to_vec(),
                         nonce: *farm_token_nonce,
                         value: farm_token_amount.clone(),
@@ -359,7 +358,7 @@ pub mod fuzz_farm_test {
                 );
 
                 if farm_token_amount > rust_zero {
-                    payments.push(TxTokenTransfer {
+                    payments.push(TxInputDCT {
                         token_identifier: farm_token_id.to_vec(),
                         nonce: *farm_token_nonce,
                         value: farm_token_amount.clone(),

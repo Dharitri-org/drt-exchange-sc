@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
 use crate::{
     proxy_common::{INVALID_PAYMENTS_ERR_MSG, MIN_MERGE_PAYMENTS},
@@ -9,13 +9,12 @@ use fixed_supply_token::FixedSupplyToken;
 
 use super::proxy_common;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait WrappedLpTokenMerge:
     token_merge_helper::TokenMergeHelperModule
     + token_send::TokenSendModule
     + proxy_common::ProxyCommonModule
     + utils::UtilsModule
-    + energy_query::EnergyQueryModule
 {
     #[payable("*")]
     #[endpoint(mergeWrappedLpTokens)]
@@ -30,7 +29,7 @@ pub trait WrappedLpTokenMerge:
         let wrapped_token_mapper = self.wrapped_lp_token();
         let wrapped_lp_tokens = WrappedLpToken::new_from_payments(&payments, &wrapped_token_mapper);
 
-        self.send().dct_local_burn_multi(&payments);
+        self.burn_multi_dct(&payments);
 
         let merged_tokens = self
             .merge_wrapped_lp_tokens(&caller, wrapped_lp_tokens)
@@ -72,7 +71,9 @@ pub trait WrappedLpTokenMerge:
             .attributes
             .locked_tokens
             .token_identifier;
-        let factory_address = self.get_factory_address_for_locked_token(&locked_token_id);
+        let factory_address = self
+            .factory_address_for_locked_token(&locked_token_id)
+            .get();
 
         let wrapped_lp_token_mapper = self.wrapped_lp_token();
         merge_wrapped_lp_tokens(

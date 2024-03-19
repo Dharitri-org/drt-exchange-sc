@@ -2,13 +2,13 @@
 
 use simple_lock::error_messages::INVALID_PAYMENTS_ERR_MSG;
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait SimpleLockWhitelist:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
-    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + simple_lock::proxy_lp::ProxyLpModule
     + simple_lock::proxy_farm::ProxyFarmModule
     + simple_lock::lp_interactions::LpInteractionsModule
@@ -27,9 +27,6 @@ pub trait SimpleLockWhitelist:
             let _ = whitelist.insert(token_id);
         }
     }
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     /// Sets the transfer role for the given address. Defaults to own address.
     #[only_owner]

@@ -1,7 +1,7 @@
-use dharitri_sc::contract_base::{CallableContract, ContractBase};
-use dharitri_sc_scenario::DebugApi;
+use dharitri_wasm::contract_base::{CallableContract, ContractBase};
+use dharitri_wasm_debug::DebugApi;
 
-static DEPOSIT_FN_NAME: &str = "depositSwapFees";
+static DEPOSIT_FN_NAME: &[u8] = b"depositSwapFees";
 
 #[derive(Clone)]
 pub struct FeesCollectorMock {}
@@ -11,8 +11,12 @@ impl ContractBase for FeesCollectorMock {
 }
 
 impl CallableContract for FeesCollectorMock {
-    fn call(&self, fn_name: &str) -> bool {
+    fn call(&self, fn_name: &[u8]) -> bool {
         fn_name == DEPOSIT_FN_NAME
+    }
+
+    fn clone_obj(&self) -> Box<dyn CallableContract> {
+        Box::new(self.clone())
     }
 }
 

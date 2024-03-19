@@ -1,9 +1,9 @@
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use crate::errors::*;
 use crate::proposal::*;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait Config {
     #[endpoint(changeQuorum)]
     fn change_quorum(&self, new_value: BigUint) {

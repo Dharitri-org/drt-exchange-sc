@@ -1,25 +1,28 @@
 #[cfg(test)]
 pub mod fuzz_data_tests {
-    #![allow(deprecated)]
-
-    dharitri_sc::imports!();
-    dharitri_sc::derive_imports!();
+    dharitri_wasm::imports!();
+    dharitri_wasm::derive_imports!();
 
     use ::config::ConfigModule;
     use common_structs::UnlockMilestone;
+    use dharitri_wasm::dharitri_codec::Empty;
+    use dharitri_wasm::types::{Address, BigUint, DctLocalRole};
+    use dharitri_wasm_debug::{
+        managed_address, managed_token_id, managed_token_id_wrapped, rust_biguint,
+        testing_framework::*, DebugApi,
+    };
+    use dharitri_wasm_debug::{managed_biguint, HashMap};
+    use farm::exit_penalty::ExitPenaltyModule;
+    use pausable::{PausableModule, State};
+    use std::cell::Cell;
+
+    type RustBigUint = num_bigint::BigUint;
+
     use factory::locked_asset::LockedAssetModule;
     use factory::*;
-    use farm::exit_penalty::ExitPenaltyModule;
     use farm::*;
     use farm_token::FarmTokenModule;
-    use dharitri_sc::codec::Empty;
-    use dharitri_sc::types::{Address, BigUint, DctLocalRole};
-    use dharitri_sc_scenario::{
-        managed_address, managed_biguint, managed_token_id, managed_token_id_wrapped, rust_biguint,
-        whitebox_legacy::*, DebugApi,
-    };
     use pair::*;
-    use pausable::{PausableModule, State};
     use price_discovery::redeem_token::*;
     use price_discovery::*;
     use simple_lock::locked_token::LockedTokenModule;
@@ -27,10 +30,6 @@ pub mod fuzz_data_tests {
 
     use rand::prelude::StdRng;
     use rand::SeedableRng;
-    use std::cell::Cell;
-    use std::collections::HashMap;
-
-    type RustBigUint = num_bigint::BigUint;
 
     pub const FARM_WASM_PATH: &str = "farm/output/farm.wasm";
     pub const PAIR_WASM_PATH: &str = "pair/output/pair.wasm";

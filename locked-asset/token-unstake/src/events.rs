@@ -1,9 +1,9 @@
 use crate::tokens_per_user::UnstakePair;
 
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait EventsModule {
     fn emit_unlocked_tokens_event(
         &self,

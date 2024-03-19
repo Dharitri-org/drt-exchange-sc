@@ -1,5 +1,5 @@
-dharitri_sc::imports!();
-dharitri_sc::derive_imports!();
+dharitri_wasm::imports!();
+dharitri_wasm::derive_imports!();
 use crate::contexts::add_liquidity::AddLiquidityContext;
 use crate::contexts::base::StorageCache;
 use crate::contexts::base::SwapTokensOrder;
@@ -11,7 +11,7 @@ use super::config;
 
 const MINIMUM_LIQUIDITY: u64 = 1_000;
 
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait LiquidityPoolModule:
     amm::AmmModule
     + config::ConfigModule
@@ -139,6 +139,11 @@ pub trait LiquidityPoolModule:
         );
 
         if &second_token_amount_optimal <= second_token_amount_desired {
+            require!(
+                second_token_amount_optimal >= context.second_token_amount_min,
+                ERROR_INSUFFICIENT_SECOND_TOKEN
+            );
+
             context.first_token_optimal_amount = first_token_amount_desired.clone();
             context.second_token_optimal_amount = second_token_amount_optimal;
         } else {
@@ -151,17 +156,14 @@ pub trait LiquidityPoolModule:
                 &first_token_amount_optimal <= first_token_amount_desired,
                 ERROR_OPTIMAL_GRATER_THAN_PAID
             );
+            require!(
+                first_token_amount_optimal >= context.first_token_amount_min,
+                ERROR_INSUFFICIENT_FIRST_TOKEN
+            );
+
             context.first_token_optimal_amount = first_token_amount_optimal;
             context.second_token_optimal_amount = second_token_amount_desired.clone();
         }
-        require!(
-            context.first_token_optimal_amount >= context.first_token_amount_min,
-            ERROR_INSUFFICIENT_FIRST_TOKEN
-        );
-        require!(
-            context.second_token_optimal_amount >= context.second_token_amount_min,
-            ERROR_INSUFFICIENT_SECOND_TOKEN
-        );
     }
 
     fn get_token_for_given_position(

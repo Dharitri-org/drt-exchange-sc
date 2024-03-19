@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 mod farm_setup;
 
 use farm_setup::multi_user_farm_setup::*;

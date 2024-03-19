@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 use common_types::{PaymentsVec, Week};
 use core::marker::PhantomData;
@@ -11,7 +11,7 @@ pub mod config;
 pub mod events;
 pub mod fees_accumulation;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait FeesCollector:
     config::ConfigModule
     + events::FeesCollectorEventsModule
@@ -25,9 +25,8 @@ pub trait FeesCollector:
     + locking_module::lock_with_energy_module::LockWithEnergyModule
     + energy_query::EnergyQueryModule
     + week_timekeeping::WeekTimekeepingModule
-    + dharitri_sc_modules::pause::PauseModule
+    + dharitri_wasm_modules::pause::PauseModule
     + utils::UtilsModule
-    + sc_whitelist_module::SCWhitelistModule
 {
     #[init]
     fn init(&self, locked_token_id: TokenIdentifier, energy_factory_address: ManagedAddress) {
@@ -40,92 +39,54 @@ pub trait FeesCollector:
         tokens.push(locked_token_id.clone());
         self.add_known_tokens(tokens);
 
-        self.locked_token_id().set_if_empty(locked_token_id);
+        self.locked_token_id().set(locked_token_id);
         self.energy_factory_address().set(&energy_factory_address);
     }
 
-    #[endpoint]
-    fn upgrade(&self) {}
-
     #[endpoint(claimRewards)]
-    fn claim_rewards_endpoint(
-        &self,
-        opt_original_caller: OptionalValue<ManagedAddress>,
-    ) -> PaymentsVec<Self::Api> {
+    fn claim_rewards(&self) -> PaymentsVec<Self::Api> {
         require!(self.not_paused(), "Cannot claim while paused");
 
-        let caller = self.blockchain().get_caller();
-        let original_caller = self.get_orig_caller_from_opt(&caller, opt_original_caller);
-
-        self.claim_rewards(caller, original_caller)
-    }
-
-    #[endpoint(claimBoostedRewards)]
-    fn claim_boosted_rewards(
-        &self,
-        opt_original_caller: OptionalValue<ManagedAddress>,
-    ) -> PaymentsVec<Self::Api> {
-        require!(self.not_paused(), "Cannot claim while paused");
-
-        let original_caller = match opt_original_caller {
-            OptionalValue::Some(user) => {
-                require!(
-                    self.allow_external_claim_rewards(&user).get(),
-                    "Cannot claim rewards for this address"
-                );
-                user
-            }
-            OptionalValue::None => self.blockchain().get_caller(),
-        };
-
-        self.claim_rewards(original_caller.clone(), original_caller)
-    }
-
-    fn claim_rewards(
-        &self,
-        caller: ManagedAddress,
-        original_caller: ManagedAddress,
-    ) -> PaymentsVec<Self::Api> {
         self.accumulate_additional_locked_tokens();
 
+        let caller = self.blockchain().get_caller();
         let wrapper = FeesCollectorWrapper::new();
-        let mut rewards = self.claim_multi(&wrapper, &original_caller);
+        let rewards = self.claim_multi(&wrapper, &caller);
+        let mut output_rewards = ManagedVec::new();
         if rewards.is_empty() {
-            return rewards;
+            return output_rewards;
         }
 
-        let locked_token_id = self.get_locked_token_id();
-        let mut i = 0;
-        let mut len = rewards.len();
-        let mut total_locked_token_rewards_amount = BigUint::zero();
-        while i < len {
-            let rew = rewards.get(i);
-            if rew.token_identifier != locked_token_id {
-                i += 1;
-                continue;
+        let locked_token_id = self.locked_token_id().get();
+        let mut opt_locked_rewards = None;
+        for reward in &rewards {
+            if reward.token_identifier == locked_token_id {
+                let energy_factory_addr = self.energy_factory_address().get();
+                let locked_rewards = self.lock_virtual(
+                    self.get_base_token_id(&energy_factory_addr),
+                    reward.amount,
+                    caller.clone(),
+                    caller.clone(),
+                );
+                opt_locked_rewards = Some(locked_rewards);
+            } else {
+                output_rewards.push(DctTokenPayment::new(
+                    reward.token_identifier,
+                    reward.token_nonce,
+                    reward.amount,
+                ));
             }
-
-            total_locked_token_rewards_amount += rew.amount;
-            len -= 1;
-            rewards.remove(i);
         }
 
-        if !rewards.is_empty() {
-            self.send().direct_multi(&caller, &rewards);
+        if !output_rewards.is_empty() {
+            self.send().direct_multi(&caller, &output_rewards);
         }
 
-        if total_locked_token_rewards_amount > 0 {
-            let locked_rewards = self.lock_virtual(
-                self.get_base_token_id(),
-                total_locked_token_rewards_amount,
-                caller,
-                original_caller,
-            );
-
-            rewards.push(locked_rewards);
+        if let Some(locked_rewards) = opt_locked_rewards {
+            output_rewards.push(locked_rewards);
         }
 
-        rewards
+        output_rewards
     }
 }
 

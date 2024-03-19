@@ -1,6 +1,4 @@
-use crate::errors::ERROR_NOT_AN_DCT;
-
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 /// # Dharitri smart contract module - Governance
 ///
@@ -29,122 +27,95 @@ dharitri_sc::imports!();
 /// Please note that although the main contract can modify the module's storage directly, it is not recommended to do so,
 /// as that defeats the whole purpose of having governance. These parameters should only be modified through actions.
 ///
-
-const MIN_VOTING_DELAY: u64 = 1;
-const MAX_VOTING_DELAY: u64 = 100_800; // 1 Week
-const MIN_VOTING_PERIOD: u64 = 14_400; // 24 Hours
-const MAX_VOTING_PERIOD: u64 = 201_600; // 2 Weeks
-const MIN_QUORUM: u64 = 1_000; // 10%
-const MAX_QUORUM: u64 = 6_000; // 60%
-const MIN_MIN_FEE_FOR_PROPOSE: u64 = 2_000_000;
-const MAX_MIN_FEE_FOR_PROPOSE: u64 = 200_000_000_000;
-const DECIMALS_CONST: u64 = 1_000_000_000_000_000_000;
-pub const MAX_GAS_LIMIT_PER_BLOCK: u64 = 600_000_000;
-pub const FULL_PERCENTAGE: u64 = 10_000;
-
-#[dharitri_sc::module]
+#[dharitri_wasm::module]
 pub trait ConfigurablePropertiesModule:
-    energy_query::EnergyQueryModule + permissions_module::PermissionsModule
+    crate::caller_check::CallerCheckModule + energy_query::EnergyQueryModule
 {
     // endpoints - these can only be called by the SC itself.
     // i.e. only by proposing and executing an action with the SC as dest and the respective func name
 
-    #[only_owner]
     #[endpoint(changeMinEnergyForProposal)]
     fn change_min_energy_for_propose(&self, new_value: BigUint) {
+        self.require_caller_self();
+
         self.try_change_min_energy_for_propose(new_value);
     }
 
-    #[only_owner]
     #[endpoint(changeMinFeeForProposal)]
     fn change_min_fee_for_propose(&self, new_value: BigUint) {
-        self.try_change_min_fee_for_propose(new_value);
+        self.require_caller_self();
+
+        self.try_change_min_energy_for_propose(new_value);
     }
 
-    #[only_owner]
-    #[endpoint(changeQuorumPercentage)]
-    fn change_quorum_percentage(&self, new_value: u64) {
-        self.try_change_quorum_percentage(new_value);
+    #[endpoint(changeQuorum)]
+    fn change_quorum(&self, new_value: BigUint) {
+        self.require_caller_self();
+
+        self.try_change_quorum(new_value);
     }
 
-    #[only_owner]
-    #[endpoint(changeWithdrawPercentage)]
-    fn change_withdraw_percentage(&self, new_value: u64) {
-        self.try_change_withdraw_percentage_defeated(new_value);
-    }
-
-    #[only_owner]
     #[endpoint(changeVotingDelayInBlocks)]
     fn change_voting_delay_in_blocks(&self, new_value: u64) {
+        self.require_caller_self();
+
         self.try_change_voting_delay_in_blocks(new_value);
     }
 
-    #[only_owner]
     #[endpoint(changeVotingPeriodInBlocks)]
     fn change_voting_period_in_blocks(&self, new_value: u64) {
+        self.require_caller_self();
+
         self.try_change_voting_period_in_blocks(new_value);
     }
 
+    #[endpoint(changeLockTimeAfterVotingEndsInBlocks)]
+    fn change_lock_time_after_voting_ends_in_blocks(&self, new_value: u64) {
+        self.require_caller_self();
+
+        self.try_change_lock_time_after_voting_ends_in_blocks(new_value);
+    }
+
     fn try_change_min_energy_for_propose(&self, new_value: BigUint) {
+        require!(new_value != 0, "Min energy for proposal can't be set to 0");
+
         self.min_energy_for_propose().set(&new_value);
     }
 
     fn try_change_min_fee_for_propose(&self, new_value: BigUint) {
-        let minimum_min_fee =
-            BigUint::from(MIN_MIN_FEE_FOR_PROPOSE) * BigUint::from(DECIMALS_CONST);
-        let maximum_min_fee =
-            BigUint::from(MAX_MIN_FEE_FOR_PROPOSE) * BigUint::from(DECIMALS_CONST);
-        require!(
-            new_value > minimum_min_fee && new_value < maximum_min_fee,
-            "Not valid value for min fee!"
-        );
+        require!(new_value != 0, "Min fee for proposal can't be set to 0");
 
         self.min_fee_for_propose().set(&new_value);
     }
 
-    fn try_change_quorum_percentage(&self, new_quorum_percentage: u64) {
+    fn try_change_quorum(&self, new_value: BigUint) {
+        require!(new_value != 0, "Quorum can't be set to 0");
+
+        self.quorum().set(&new_value);
+    }
+
+    fn try_change_voting_delay_in_blocks(&self, new_value: u64) {
+        require!(new_value != 0, "Voting delay in blocks can't be set to 0");
+
+        self.voting_delay_in_blocks().set(new_value);
+    }
+
+    fn try_change_voting_period_in_blocks(&self, new_value: u64) {
         require!(
-            (MIN_QUORUM..MAX_QUORUM).contains(&new_quorum_percentage),
-            "Not valid value for Quorum!"
+            new_value != 0,
+            "Voting period (in blocks) can't be set to 0"
         );
 
-        self.quorum_percentage().set(new_quorum_percentage);
+        self.voting_period_in_blocks().set(new_value);
     }
 
-    fn try_change_voting_delay_in_blocks(&self, new_voting_delay: u64) {
+    fn try_change_lock_time_after_voting_ends_in_blocks(&self, new_value: u64) {
         require!(
-            (MIN_VOTING_DELAY..MAX_VOTING_DELAY).contains(&new_voting_delay),
-            "Not valid value for voting delay!"
+            new_value != 0,
+            "Lock time after voting ends (in blocks) can't be set to 0"
         );
 
-        self.voting_delay_in_blocks().set(new_voting_delay);
-    }
-
-    fn try_change_voting_period_in_blocks(&self, new_voting_period: u64) {
-        require!(
-            (MIN_VOTING_PERIOD..MAX_VOTING_PERIOD).contains(&new_voting_period),
-            "Not valid value for voting period!"
-        );
-
-        self.voting_period_in_blocks().set(new_voting_period);
-    }
-
-    fn try_change_withdraw_percentage_defeated(&self, new_withdraw_percentage: u64) {
-        require!(
-            new_withdraw_percentage <= FULL_PERCENTAGE,
-            "Not valid value for withdraw percentage if defeated!"
-        );
-
-        self.withdraw_percentage_defeated().set(new_withdraw_percentage);
-    }
-
-    fn try_change_fee_token_id(&self, fee_token_id: TokenIdentifier) {
-        require!(fee_token_id.is_valid_dct_identifier(), ERROR_NOT_AN_DCT);
-        self.fee_token_id().set_if_empty(&fee_token_id);
-    }
-
-    fn smoothing_function(&self, input: &BigUint) -> BigUint {
-        input.sqrt()
+        self.lock_time_after_voting_ends_in_blocks().set(new_value);
     }
 
     #[view(getMinEnergyForPropose)]
@@ -156,8 +127,8 @@ pub trait ConfigurablePropertiesModule:
     fn min_fee_for_propose(&self) -> SingleValueMapper<BigUint>;
 
     #[view(getQuorum)]
-    #[storage_mapper("quorumPercentage")]
-    fn quorum_percentage(&self) -> SingleValueMapper<u64>;
+    #[storage_mapper("quorum")]
+    fn quorum(&self) -> SingleValueMapper<BigUint>;
 
     #[view(getVotingDelayInBlocks)]
     #[storage_mapper("votingDelayInBlocks")]
@@ -167,11 +138,11 @@ pub trait ConfigurablePropertiesModule:
     #[storage_mapper("votingPeriodInBlocks")]
     fn voting_period_in_blocks(&self) -> SingleValueMapper<u64>;
 
+    #[view(getLockTimeAfterVotingEndsInBlocks)]
+    #[storage_mapper("lockTimeAfterVotingEndsInBlocks")]
+    fn lock_time_after_voting_ends_in_blocks(&self) -> SingleValueMapper<u64>;
+
     #[view(getFeeTokenId)]
     #[storage_mapper("feeTokenId")]
     fn fee_token_id(&self) -> SingleValueMapper<TokenIdentifier>;
-
-    #[view(getWithdrawPercentageDefeated)]
-    #[storage_mapper("witdrawPercentageDefeated")]
-    fn withdraw_percentage_defeated(&self) -> SingleValueMapper<u64>;
 }

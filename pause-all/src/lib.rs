@@ -1,14 +1,14 @@
 #![no_std]
 
-use dharitri_sc_modules::ongoing_operation::{CONTINUE_OP, STOP_OP};
+use dharitri_wasm_modules::ongoing_operation::{CONTINUE_OP, STOP_OP};
 use ongoing_pause_operation::{OngoingOperation, MIN_GAS_TO_SAVE_PROGRESS};
 
-dharitri_sc::imports!();
+dharitri_wasm::imports!();
 
 mod pause_proxy {
-    dharitri_sc::imports!();
+    dharitri_wasm::imports!();
 
-    #[dharitri_sc::proxy]
+    #[dharitri_wasm::proxy]
     pub trait Pausable {
         #[endpoint]
         fn pause(&self);
@@ -20,16 +20,13 @@ mod pause_proxy {
 
 pub mod ongoing_pause_operation;
 
-#[dharitri_sc::contract]
+#[dharitri_wasm::contract]
 pub trait PauseAll:
     ongoing_pause_operation::OngoingPauseOperationModule
-    + dharitri_sc_modules::ongoing_operation::OngoingOperationModule
+    + dharitri_wasm_modules::ongoing_operation::OngoingOperationModule
 {
     #[init]
     fn init(&self) {}
-
-    #[endpoint]
-    fn upgrade(&self) {}
 
     #[only_owner]
     #[endpoint(addPausableContracts)]

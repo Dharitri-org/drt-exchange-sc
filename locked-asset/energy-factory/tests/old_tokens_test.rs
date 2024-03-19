@@ -1,27 +1,25 @@
-#![allow(deprecated)]
-
 mod energy_factory_setup;
 
 use common_structs::{
     LockedAssetTokenAttributes, LockedAssetTokenAttributesEx, UnlockMilestone, UnlockMilestoneEx,
     UnlockSchedule, UnlockScheduleEx,
 };
+use dharitri_wasm::types::{BigInt, ManagedVec, MultiValueEncoded};
+use dharitri_wasm_modules::pause::PauseModule;
 use energy_factory::{
     energy::{Energy, EnergyModule},
     migration::SimpleLockMigrationModule,
 };
 use energy_factory_setup::*;
-use dharitri_sc::types::{BigInt, ManagedVec, MultiValueEncoded};
-use dharitri_sc_modules::pause::PauseModule;
 use simple_lock::locked_token::LockedTokenAttributes;
 
-use dharitri_sc_scenario::{
+use dharitri_wasm_debug::{
     managed_address, managed_biguint, managed_token_id_wrapped, rust_biguint, DebugApi,
 };
 
 #[test]
 fn extend_lock_period_old_token_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let rust_zero = rust_biguint!(0);
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
 
@@ -60,8 +58,6 @@ fn extend_lock_period_old_token_test() {
         managed_biguint!(60_000) * USER_BALANCE * (second_unlock_epoch - current_epoch)
             / 100_000u32;
 
-    let user_energy_amount_vec = user_energy_amount.to_bytes_be().as_slice().to_vec();
-
     setup
         .b_mock
         .execute_tx(&setup.owner, &setup.sc_wrapper, &rust_zero, |sc| {
@@ -70,14 +66,14 @@ fn extend_lock_period_old_token_test() {
             let user_energy = (
                 managed_address!(&first_user),
                 managed_biguint!(USER_BALANCE),
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
             )
                 .into();
             users_energy.push(user_energy);
             sc.set_energy_for_old_tokens(users_energy);
 
             let expected_energy = Energy::new(
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
                 1,
                 managed_biguint!(USER_BALANCE),
             );
@@ -103,7 +99,7 @@ fn extend_lock_period_old_token_test() {
         .assert_ok();
 
     // (40% * x * 90 + 60% * x * 120) / x = 36 + 72 = 108
-    let new_lock_epochs: dharitri_sc::types::BigUint<DebugApi> =
+    let new_lock_epochs: dharitri_wasm::types::BigUint<DebugApi> =
         (managed_biguint!(40_000) * USER_BALANCE / 100_000u32
             * (first_unlock_epoch - current_epoch)
             + managed_biguint!(60_000) * USER_BALANCE / 100_000u32
@@ -140,7 +136,7 @@ fn extend_lock_period_old_token_test() {
 
 #[test]
 fn min_period_migrated_token_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let rust_zero = rust_biguint!(0);
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
 
@@ -179,8 +175,6 @@ fn min_period_migrated_token_test() {
         managed_biguint!(60_000) * USER_BALANCE * (second_unlock_epoch - current_epoch)
             / 100_000u32;
 
-    let user_energy_amount_vec = user_energy_amount.to_bytes_be().as_slice().to_vec();
-
     setup
         .b_mock
         .execute_tx(&setup.owner, &setup.sc_wrapper, &rust_zero, |sc| {
@@ -189,14 +183,14 @@ fn min_period_migrated_token_test() {
             let user_energy = (
                 managed_address!(&first_user),
                 managed_biguint!(USER_BALANCE),
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
             )
                 .into();
             users_energy.push(user_energy);
             sc.set_energy_for_old_tokens(users_energy);
 
             let expected_energy = Energy::new(
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
                 1,
                 managed_biguint!(USER_BALANCE),
             );
@@ -250,7 +244,7 @@ fn min_period_migrated_token_test() {
 
 #[test]
 fn min_period_migrated_token_test2() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let rust_zero = rust_biguint!(0);
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
 
@@ -289,8 +283,6 @@ fn min_period_migrated_token_test2() {
         managed_biguint!(60_000) * USER_BALANCE * (second_unlock_epoch - current_epoch)
             / 100_000u32;
 
-    let user_energy_amount_vec = user_energy_amount.to_bytes_be().as_slice().to_vec();
-
     setup
         .b_mock
         .execute_tx(&setup.owner, &setup.sc_wrapper, &rust_zero, |sc| {
@@ -300,14 +292,14 @@ fn min_period_migrated_token_test2() {
             let user_energy = (
                 managed_address!(&first_user),
                 managed_biguint!(USER_BALANCE),
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
             )
                 .into();
             users_energy.push(user_energy);
             sc.set_energy_for_old_tokens(users_energy);
 
             let expected_energy = Energy::new(
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
                 1441,
                 managed_biguint!(USER_BALANCE),
             );
@@ -321,7 +313,7 @@ fn min_period_migrated_token_test2() {
         .assert_ok();
 
     // (40% * x * 180 + 60% * x * 270) / x = 72 + 162 = 234
-    let new_lock_epochs: dharitri_sc::types::BigUint<DebugApi> =
+    let new_lock_epochs: dharitri_wasm::types::BigUint<DebugApi> =
         (managed_biguint!(40_000) * USER_BALANCE / 100_000u32
             * (first_unlock_epoch - current_epoch)
             + managed_biguint!(60_000) * USER_BALANCE / 100_000u32
@@ -370,7 +362,7 @@ fn min_period_migrated_token_test2() {
 
 #[test]
 fn check_initial_old_unlock_schedule_decode_test() {
-    DebugApi::dummy();
+    let _ = DebugApi::dummy();
     let rust_zero = rust_biguint!(0);
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
 
@@ -409,8 +401,6 @@ fn check_initial_old_unlock_schedule_decode_test() {
         managed_biguint!(60_000) * USER_BALANCE * (second_unlock_epoch - current_epoch)
             / 100_000u32;
 
-    let user_energy_amount_vec = user_energy_amount.to_bytes_be().as_slice().to_vec();
-
     setup
         .b_mock
         .execute_tx(&setup.owner, &setup.sc_wrapper, &rust_zero, |sc| {
@@ -419,14 +409,14 @@ fn check_initial_old_unlock_schedule_decode_test() {
             let user_energy = (
                 managed_address!(&first_user),
                 managed_biguint!(USER_BALANCE),
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
             )
                 .into();
             users_energy.push(user_energy);
             sc.set_energy_for_old_tokens(users_energy);
 
             let expected_energy = Energy::new(
-                BigInt::from_signed_bytes_be(&user_energy_amount_vec),
+                BigInt::from(user_energy_amount.clone()),
                 1,
                 managed_biguint!(USER_BALANCE),
             );
@@ -452,7 +442,7 @@ fn check_initial_old_unlock_schedule_decode_test() {
         .assert_ok();
 
     // (40% * x * 90 + 60% * x * 120) / x = 36 + 72 = 108
-    let new_lock_epochs: dharitri_sc::types::BigUint<DebugApi> =
+    let new_lock_epochs: dharitri_wasm::types::BigUint<DebugApi> =
         (managed_biguint!(40_000) * USER_BALANCE / 100_000u32
             * (first_unlock_epoch - current_epoch)
             + managed_biguint!(60_000) * USER_BALANCE / 100_000u32

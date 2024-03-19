@@ -1,12 +1,11 @@
 #[cfg(test)]
 pub mod fuzz_factory_test {
-    #![allow(deprecated)]
 
-    dharitri_sc::imports!();
-    dharitri_sc::derive_imports!();
+    dharitri_wasm::imports!();
+    dharitri_wasm::derive_imports!();
 
-    use dharitri_sc_scenario::whitebox_legacy::TxTokenTransfer;
-    use dharitri_sc_scenario::{rust_biguint, DebugApi};
+    use dharitri_wasm_debug::tx_mock::TxInputDCT;
+    use dharitri_wasm_debug::{rust_biguint, DebugApi};
 
     use crate::fuzz_data::fuzz_data_tests::*;
 
@@ -52,7 +51,7 @@ pub mod fuzz_factory_test {
             return;
         }
 
-        let payments = vec![TxTokenTransfer {
+        let payments = vec![TxInputDCT {
             token_identifier: token_id.to_vec(),
             nonce: 0,
             value: amount_to_lock,
@@ -157,7 +156,7 @@ pub mod fuzz_factory_test {
             }
         }
 
-        let payments = vec![TxTokenTransfer {
+        let payments = vec![TxInputDCT {
             token_identifier: locked_token_id.to_vec(),
             nonce: locked_token_nonce,
             value: amount_to_unlock,

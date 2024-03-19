@@ -1,33 +1,24 @@
-#![allow(deprecated)]
-
-use energy_factory::token_whitelist::TokenWhitelistModule;
-use energy_factory::SimpleLockEnergy;
-use energy_query::EnergyQueryModule;
-use locking_module::lock_with_energy_module::LockWithEnergyModule;
-use dharitri_sc::codec::multi_types::{MultiValue3, OptionalValue};
-use dharitri_sc::storage::mappers::StorageTokenWrapper;
-use dharitri_sc::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
-use dharitri_sc_modules::pause::PauseModule;
-use dharitri_sc_scenario::whitebox_legacy::TxTokenTransfer;
-use dharitri_sc_scenario::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::*, DebugApi,
+use dharitri_wasm::dharitri_codec::multi_types::{MultiValue3, OptionalValue};
+use dharitri_wasm::storage::mappers::StorageTokenWrapper;
+use dharitri_wasm::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
+use dharitri_wasm_debug::tx_mock::TxInputDCT;
+use dharitri_wasm_debug::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint, testing_framework::*,
+    DebugApi,
 };
-use pair::pair_actions::add_liq::AddLiquidityModule;
-use pair::pair_actions::remove_liq::RemoveLiquidityModule;
-use simple_lock::locked_token::LockedTokenModule;
 
 use farm::exit_penalty::ExitPenaltyModule;
 use pair::config as pair_config;
-use pair::safe_price_view::{SafePriceViewModule, DEFAULT_SAFE_PRICE_ROUNDS_OFFSET};
+use pair::safe_price::SafePriceModule;
 use pair::*;
 use pair_config::ConfigModule as _;
 use pausable::{PausableModule, State};
 
 use ::config as farm_config;
+use farm::*;
 use farm_boosted_yields::boosted_yields_factors::BoostedYieldsFactorsModule;
 use farm_config::ConfigModule as _;
 use farm_token::FarmTokenModule;
-use farm_with_locked_rewards::*;
 
 use crate::constants::*;
 
@@ -68,6 +59,7 @@ where
             sc.lp_token_identifier().set(&lp_token_id);
 
             sc.state().set(pausable::State::Active);
+            sc.set_max_observations_per_record(10);
         })
         .assert_ok();
 
@@ -86,20 +78,18 @@ where
         &rust_biguint!(USER_TOTAL_RIDE_TOKENS),
     );
 
-    let mut block_round: u64 = 1;
-    b_mock.set_block_round(block_round);
     b_mock.set_block_nonce(BLOCK_NONCE_FIRST_ADD_LIQ);
 
     let temp_user_addr = b_mock.create_user_account(&rust_zero);
     b_mock.set_dct_balance(
         &temp_user_addr,
         WMOAX_TOKEN_ID,
-        &rust_biguint!(USER_TOTAL_WMOAX_TOKENS * 2),
+        &rust_biguint!(USER_TOTAL_WMOAX_TOKENS),
     );
     b_mock.set_dct_balance(
         &temp_user_addr,
         RIDE_TOKEN_ID,
-        &rust_biguint!(USER_TOTAL_RIDE_TOKENS * 2),
+        &rust_biguint!(USER_TOTAL_RIDE_TOKENS),
     );
 
     add_liquidity(
@@ -115,8 +105,6 @@ where
         1_001_000_000,
     );
 
-    block_round += 1;
-    b_mock.set_block_round(block_round);
     b_mock.set_block_nonce(BLOCK_NONCE_SECOND_ADD_LIQ);
 
     add_liquidity(
@@ -132,33 +120,20 @@ where
         1_001_000_000,
     );
 
-    // Extra operations to record the new reserves
-    block_round += DEFAULT_SAFE_PRICE_ROUNDS_OFFSET;
-    b_mock.set_block_round(block_round);
-    add_liquidity(
-        &temp_user_addr,
-        b_mock,
-        &pair_wrapper,
-        1_001_000_000,
-        1_000_000_000,
-        1_001_000_000,
-        1_000_000_000,
-        USER_TOTAL_LP_TOKENS,
-        1_001_000_000,
-        1_001_000_000,
-    );
-    // Remove liquidity to have the correct lp token supply
-    remove_liquidity(&temp_user_addr, b_mock, &pair_wrapper, USER_TOTAL_LP_TOKENS);
+    let mut i = 10;
+    while i <= BLOCK_NONCE_AFTER_PAIR_SETUP {
+        b_mock.set_block_nonce(i);
 
-    b_mock
-        .execute_tx(user_addr, &pair_wrapper, &rust_biguint!(0), |sc| {
-            sc.get_lp_tokens_safe_price_by_round_offset(
-                managed_address!(pair_wrapper.address_ref()),
-                1,
-                managed_biguint!(1_000_000_000),
-            );
-        })
-        .assert_ok();
+        b_mock
+            .execute_tx(user_addr, &pair_wrapper, &rust_biguint!(0), |sc| {
+                sc.update_and_get_tokens_for_given_position_with_safe_price(managed_biguint!(
+                    1_000_000_000
+                ));
+            })
+            .assert_ok();
+
+        i += 5;
+    }
 
     b_mock.set_block_nonce(BLOCK_NONCE_AFTER_PAIR_SETUP);
 
@@ -181,12 +156,12 @@ fn add_liquidity<PairObjBuilder>(
     PairObjBuilder: 'static + Copy + Fn() -> pair::ContractObj<DebugApi>,
 {
     let payments = vec![
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: WMOAX_TOKEN_ID.to_vec(),
             nonce: 0,
             value: rust_biguint!(first_token_amount),
         },
-        TxTokenTransfer {
+        TxInputDCT {
             token_identifier: RIDE_TOKEN_ID.to_vec(),
             nonce: 0,
             value: rust_biguint!(second_token_amount),
@@ -221,41 +196,15 @@ fn add_liquidity<PairObjBuilder>(
         .assert_ok();
 }
 
-fn remove_liquidity<PairObjBuilder>(
-    user_address: &Address,
-    b_mock: &mut BlockchainStateWrapper,
-    pair_wrapper: &ContractObjWrapper<pair::ContractObj<DebugApi>, PairObjBuilder>,
-    lp_token_amount: u64,
-) where
-    PairObjBuilder: 'static + Copy + Fn() -> pair::ContractObj<DebugApi>,
-{
-    b_mock
-        .execute_dct_transfer(
-            user_address,
-            pair_wrapper,
-            LP_TOKEN_ID,
-            0,
-            &rust_biguint!(lp_token_amount),
-            |sc| {
-                sc.remove_liquidity(
-                    managed_biguint!(lp_token_amount),
-                    managed_biguint!(lp_token_amount),
-                );
-            },
-        )
-        .assert_ok();
-}
-
 pub fn setup_lp_farm<FarmObjBuilder>(
     owner_addr: &Address,
     user_addr: &Address,
-    energy_factory_address: &Address,
     b_mock: &mut BlockchainStateWrapper,
     farm_builder: FarmObjBuilder,
     user_farm_in_amount: u64,
-) -> ContractObjWrapper<farm_with_locked_rewards::ContractObj<DebugApi>, FarmObjBuilder>
+) -> ContractObjWrapper<farm::ContractObj<DebugApi>, FarmObjBuilder>
 where
-    FarmObjBuilder: 'static + Copy + Fn() -> farm_with_locked_rewards::ContractObj<DebugApi>,
+    FarmObjBuilder: 'static + Copy + Fn() -> farm::ContractObj<DebugApi>,
 {
     let rust_zero = rust_biguint!(0u64);
     let farm_wrapper =
@@ -265,7 +214,7 @@ where
 
     b_mock
         .execute_tx(owner_addr, &farm_wrapper, &rust_zero, |sc| {
-            let reward_token_id = managed_token_id!(MEX_TOKEN_ID);
+            let reward_token_id = managed_token_id!(RIDE_TOKEN_ID);
             let farming_token_id = managed_token_id!(LP_TOKEN_ID);
             let division_safety_constant = managed_biguint!(DIVISION_SAFETY_CONSTANT);
             let pair_address = managed_address!(&Address::zero());
@@ -291,11 +240,6 @@ where
                 .set(&managed_biguint!(LP_FARM_PER_BLOCK_REWARD_AMOUNT));
             sc.last_reward_block_nonce()
                 .set(BLOCK_NONCE_AFTER_PAIR_SETUP);
-            sc.lock_epochs().set(LOCK_OPTIONS[2]);
-            sc.locking_sc_address()
-                .set(managed_address!(energy_factory_address));
-            sc.energy_factory_address()
-                .set(managed_address!(energy_factory_address));
         })
         .assert_ok();
 
@@ -341,83 +285,17 @@ where
     farm_wrapper
 }
 
-pub fn setup_energy_factory<EnergyFactoryObjBuilder>(
-    owner_addr: &Address,
-    b_mock: &mut BlockchainStateWrapper,
-    energy_factory_builder: EnergyFactoryObjBuilder,
-) -> ContractObjWrapper<energy_factory::ContractObj<DebugApi>, EnergyFactoryObjBuilder>
-where
-    EnergyFactoryObjBuilder: 'static + Copy + Fn() -> energy_factory::ContractObj<DebugApi>,
-{
-    let rust_zero = rust_biguint!(0u64);
-    let energy_factory_wrapper = b_mock.create_sc_account(
-        &rust_zero,
-        Some(owner_addr),
-        energy_factory_builder,
-        "energy factory",
-    );
-
-    b_mock
-        .execute_tx(owner_addr, &energy_factory_wrapper, &rust_zero, |sc| {
-            let mut lock_options = MultiValueEncoded::new();
-            for (option, penalty) in LOCK_OPTIONS.iter().zip(PENALTY_PERCENTAGES.iter()) {
-                lock_options.push((*option, *penalty).into());
-            }
-
-            sc.init(
-                managed_token_id!(LOCKED_TOKEN_ID),
-                managed_token_id!(LEGACY_LOCKED_TOKEN_ID),
-                managed_address!(energy_factory_wrapper.address_ref()),
-                0,
-                lock_options,
-            );
-
-            sc.base_asset_token_id()
-                .set(managed_token_id!(MEX_TOKEN_ID));
-            sc.locked_token()
-                .set_token_id(managed_token_id!(LOCKED_TOKEN_ID));
-            sc.set_paused(false);
-        })
-        .assert_ok();
-
-    b_mock.set_dct_local_roles(
-        energy_factory_wrapper.address_ref(),
-        MEX_TOKEN_ID,
-        &[DctLocalRole::Mint, DctLocalRole::Burn],
-    );
-    b_mock.set_dct_local_roles(
-        energy_factory_wrapper.address_ref(),
-        LOCKED_TOKEN_ID,
-        &[
-            DctLocalRole::NftCreate,
-            DctLocalRole::NftAddQuantity,
-            DctLocalRole::NftBurn,
-            DctLocalRole::Transfer,
-        ],
-    );
-    b_mock.set_dct_local_roles(
-        energy_factory_wrapper.address_ref(),
-        LEGACY_LOCKED_TOKEN_ID,
-        &[DctLocalRole::NftBurn],
-    );
-
-    energy_factory_wrapper
-}
-
 fn enter_farm<FarmObjBuilder>(
     user_address: &Address,
     b_mock: &mut BlockchainStateWrapper,
-    farm_wrapper: &ContractObjWrapper<
-        farm_with_locked_rewards::ContractObj<DebugApi>,
-        FarmObjBuilder,
-    >,
+    farm_wrapper: &ContractObjWrapper<farm::ContractObj<DebugApi>, FarmObjBuilder>,
     farm_in_amount: u64,
-    additional_farm_tokens: &[TxTokenTransfer],
+    additional_farm_tokens: &[TxInputDCT],
 ) where
-    FarmObjBuilder: 'static + Copy + Fn() -> farm_with_locked_rewards::ContractObj<DebugApi>,
+    FarmObjBuilder: 'static + Copy + Fn() -> farm::ContractObj<DebugApi>,
 {
     let mut payments = Vec::with_capacity(1 + additional_farm_tokens.len());
-    payments.push(TxTokenTransfer {
+    payments.push(TxInputDCT {
         token_identifier: LP_TOKEN_ID.to_vec(),
         nonce: 0,
         value: rust_biguint!(farm_in_amount),
