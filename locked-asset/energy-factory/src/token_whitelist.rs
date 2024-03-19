@@ -1,6 +1,6 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait TokenWhitelistModule {
     fn is_base_asset_token(&self, token_id: &TokenIdentifier) -> bool {
         let base_asset_id = self.base_asset_token_id().get();

@@ -1,9 +1,10 @@
-use dharitri_wasm::types::{Address, ManagedAddress, MultiValueEncoded, OperationCompletionStatus};
-use dharitri_wasm_debug::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, testing_framework::*,
-    DebugApi,
-};
+#![allow(deprecated)]
+
 use farm::Farm;
+use dharitri_sc::types::{Address, ManagedAddress, MultiValueEncoded, OperationCompletionStatus};
+use dharitri_sc_scenario::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::*, DebugApi,
+};
 use pair::Pair;
 use pausable::{PausableModule, State};
 use pause_all::*;

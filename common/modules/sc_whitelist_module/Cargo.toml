@@ -1,8 +1,8 @@
 [package]
 name = "sc_whitelist_module"
 version = "0.0.0"
-authors = [ "you" ]
-edition = "2018"
+authors = ["Dharitri <contact@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/sc_whitelist_module.rs"
@@ -10,6 +10,6 @@ path = "src/sc_whitelist_module.rs"
 [dependencies.common_errors]
 path = "../../common_errors"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]

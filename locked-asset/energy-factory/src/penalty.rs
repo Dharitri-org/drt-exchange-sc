@@ -1,12 +1,12 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use common_structs::{Epoch, Percent};
 use math::linear_interpolation;
 
 use crate::lock_options::LockOption;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LocalPenaltyModule: crate::lock_options::LockOptionsModule {
     fn calculate_penalty_percentage_full_unlock(&self, lock_epochs_remaining: Epoch) -> Percent {
         let lock_options = self.get_lock_options();

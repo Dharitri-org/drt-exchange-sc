@@ -1,7 +1,7 @@
 use common_structs::{RawResultWrapper, RawResultsType};
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 type EnterFarmResultType<BigUint> =
     MultiValue2<DctTokenPayment<BigUint>, DctTokenPayment<BigUint>>;
@@ -11,7 +11,7 @@ type ClaimRewardsResultType<BigUint> =
     MultiValue2<DctTokenPayment<BigUint>, DctTokenPayment<BigUint>>;
 
 const ENTER_FARM_RESULTS_LEN: usize = 2;
-const EXIT_FARM_RESULTS_LEN: usize = 3;
+const EXIT_FARM_RESULTS_LEN: usize = 2;
 const CLAIM_REWARDS_RESULTS_LEN: usize = 2;
 
 pub struct EnterFarmResultWrapper<M: ManagedTypeApi> {
@@ -22,7 +22,6 @@ pub struct EnterFarmResultWrapper<M: ManagedTypeApi> {
 pub struct ExitFarmResultWrapper<M: ManagedTypeApi> {
     pub initial_farming_tokens: DctTokenPayment<M>,
     pub reward_tokens: DctTokenPayment<M>,
-    pub remaining_farm_tokens: DctTokenPayment<M>,
 }
 
 pub struct FarmClaimRewardsResultWrapper<M: ManagedTypeApi> {
@@ -35,26 +34,35 @@ pub struct FarmCompoundRewardsResultWrapper<M: ManagedTypeApi> {
 }
 
 mod farm_proxy {
-    dharitri_wasm::imports!();
+    dharitri_sc::imports!();
     use super::{ClaimRewardsResultType, EnterFarmResultType, ExitFarmResultType};
 
-    #[dharitri_wasm::proxy]
+    #[dharitri_sc::proxy]
     pub trait FarmProxy {
         #[payable("*")]
         #[endpoint(enterFarm)]
-        fn enter_farm(&self) -> EnterFarmResultType<Self::Api>;
+        fn enter_farm(
+            &self,
+            opt_orig_caller: OptionalValue<ManagedAddress>,
+        ) -> EnterFarmResultType<Self::Api>;
 
         #[payable("*")]
         #[endpoint(exitFarm)]
-        fn exit_farm(&self, exit_amount: BigUint) -> ExitFarmResultType<Self::Api>;
+        fn exit_farm(
+            &self,
+            opt_orig_caller: OptionalValue<ManagedAddress>,
+        ) -> ExitFarmResultType<Self::Api>;
 
         #[payable("*")]
         #[endpoint(claimRewards)]
-        fn claim_rewards(&self) -> ClaimRewardsResultType<Self::Api>;
+        fn claim_rewards(
+            &self,
+            opt_orig_caller: OptionalValue<ManagedAddress>,
+        ) -> ClaimRewardsResultType<Self::Api>;
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait FarmInteractionsModule {
     fn call_farm_enter(
         &self,
@@ -62,17 +70,19 @@ pub trait FarmInteractionsModule {
         farming_token: TokenIdentifier,
         farming_token_amount: BigUint,
         additional_farm_tokens: ManagedVec<DctTokenPayment<Self::Api>>,
+        caller: ManagedAddress,
     ) -> EnterFarmResultWrapper<Self::Api> {
         let mut contract_call = self
             .farm_proxy(farm_address)
-            .enter_farm()
-            .add_dct_token_transfer(farming_token, 0, farming_token_amount);
+            .enter_farm(caller)
+            .with_dct_transfer(DctTokenPayment::new(
+                farming_token,
+                0,
+                farming_token_amount,
+            ));
+
         for farm_token in &additional_farm_tokens {
-            contract_call = contract_call.add_dct_token_transfer(
-                farm_token.token_identifier,
-                farm_token.token_nonce,
-                farm_token.amount,
-            );
+            contract_call = contract_call.with_dct_transfer(farm_token);
         }
 
         let raw_results: RawResultsType<Self::Api> = contract_call.execute_on_dest_context();
@@ -94,12 +104,16 @@ pub trait FarmInteractionsModule {
         farm_token: TokenIdentifier,
         farm_token_nonce: u64,
         farm_token_amount: BigUint,
-        exit_amount: BigUint,
+        caller: ManagedAddress,
     ) -> ExitFarmResultWrapper<Self::Api> {
         let raw_results: RawResultsType<Self::Api> = self
             .farm_proxy(farm_address)
-            .exit_farm(exit_amount)
-            .add_dct_token_transfer(farm_token, farm_token_nonce, farm_token_amount)
+            .exit_farm(caller)
+            .with_dct_transfer(DctTokenPayment::new(
+                farm_token,
+                farm_token_nonce,
+                farm_token_amount,
+            ))
             .execute_on_dest_context();
 
         let mut results_wrapper = RawResultWrapper::new(raw_results);
@@ -107,12 +121,10 @@ pub trait FarmInteractionsModule {
 
         let initial_farming_tokens = results_wrapper.decode_next_result();
         let reward_tokens = results_wrapper.decode_next_result();
-        let remaining_farm_tokens = results_wrapper.decode_next_result();
 
         ExitFarmResultWrapper {
             initial_farming_tokens,
             reward_tokens,
-            remaining_farm_tokens,
         }
     }
 
@@ -122,11 +134,16 @@ pub trait FarmInteractionsModule {
         farm_token: TokenIdentifier,
         farm_token_nonce: u64,
         farm_token_amount: BigUint,
+        caller: ManagedAddress,
     ) -> FarmClaimRewardsResultWrapper<Self::Api> {
         let raw_results: RawResultsType<Self::Api> = self
             .farm_proxy(farm_address)
-            .claim_rewards()
-            .add_dct_token_transfer(farm_token, farm_token_nonce, farm_token_amount)
+            .claim_rewards(caller)
+            .with_dct_transfer(DctTokenPayment::new(
+                farm_token,
+                farm_token_nonce,
+                farm_token_amount,
+            ))
             .execute_on_dest_context();
 
         let mut results_wrapper = RawResultWrapper::new(raw_results);

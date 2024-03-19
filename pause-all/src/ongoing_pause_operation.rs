@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 pub const MIN_GAS_TO_SAVE_PROGRESS: u64 = 10_000_000;
 const FIRST_INDEX: usize = 1;
@@ -16,9 +16,9 @@ pub enum OngoingOperation {
     },
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait OngoingPauseOperationModule:
-    dharitri_wasm_modules::ongoing_operation::OngoingOperationModule
+    dharitri_sc_modules::ongoing_operation::OngoingOperationModule
 {
     fn load_pause_all_operation(&self) -> usize {
         let current_op: OngoingOperation = self.load_operation();

@@ -1,4 +1,4 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use crate::{LockedAssetTokenAttributes, LockedAssetTokenAttributesEx, UnlockSchedule};
 

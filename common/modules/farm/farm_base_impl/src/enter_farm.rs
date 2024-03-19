@@ -1,6 +1,6 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-use crate::{base_traits_impl::FarmContract, dharitri_codec::TopEncode};
+use crate::base_traits_impl::FarmContract;
 use common_structs::{PaymentAttributesPair, PaymentsVec};
 use contexts::{
     enter_farm_context::EnterFarmContext,
@@ -18,7 +18,7 @@ where
     pub created_with_merge: bool,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait BaseEnterFarmModule:
     rewards::RewardsModule
     + config::ConfigModule
@@ -26,8 +26,7 @@ pub trait BaseEnterFarmModule:
     + farm_token::FarmTokenModule
     + pausable::PausableModule
     + permissions_module::PermissionsModule
-    + events::EventsModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::base_farm_validation::BaseFarmValidationModule
     + utils::UtilsModule
 {
@@ -43,6 +42,18 @@ pub trait BaseEnterFarmModule:
             payments,
             &storage_cache.farming_token_id,
             &storage_cache.farm_token_id,
+        );
+
+        // The order is important - first check and update, then increase position
+        FC::check_and_update_user_farm_position(
+            self,
+            &caller,
+            &enter_farm_context.additional_farm_tokens,
+        );
+        FC::increase_user_farm_position(
+            self,
+            &caller,
+            &enter_farm_context.farming_token_payment.amount,
         );
 
         FC::generate_aggregated_rewards(self, &mut storage_cache);
@@ -62,7 +73,8 @@ pub trait BaseEnterFarmModule:
             &farm_token_mapper,
         );
 
-        self.burn_multi_dct(&enter_farm_context.additional_farm_tokens);
+        self.send()
+            .dct_local_burn_multi(&enter_farm_context.additional_farm_tokens);
 
         InternalEnterFarmResult {
             created_with_merge: !enter_farm_context.additional_farm_tokens.is_empty(),

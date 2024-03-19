@@ -1,3 +1,3 @@
 fn main() {
-    dharitri_wasm_debug::meta::perform::<metabonding_staking::AbiProvider>();
+    dharitri_sc_meta::cli_main::<metabonding_staking::AbiProvider>();
 }

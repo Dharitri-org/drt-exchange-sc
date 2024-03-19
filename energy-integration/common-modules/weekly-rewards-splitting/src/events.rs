@@ -1,10 +1,10 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 pub use common_types::{Epoch, Week};
 use energy_query::Energy;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait WeeklyRewardsSplittingEventsModule {
     #[inline]
     fn emit_claim_multi_event(
@@ -14,6 +14,9 @@ pub trait WeeklyRewardsSplittingEventsModule {
         energy: &Energy<Self::Api>,
         all_payments: &ManagedVec<Self::Api, DctTokenPayment<Self::Api>>,
     ) {
+        if all_payments.is_empty() {
+            return;
+        }
         self.claim_multi_event(user, current_week, energy, all_payments);
     }
 

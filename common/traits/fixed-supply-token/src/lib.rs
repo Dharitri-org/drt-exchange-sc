@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub trait FixedSupplyToken<M: ManagedTypeApi> {
     fn get_total_supply(&self) -> BigUint<M>;

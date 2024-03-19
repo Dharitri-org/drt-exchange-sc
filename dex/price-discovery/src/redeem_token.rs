@@ -1,14 +1,14 @@
-use dharitri_wasm::dharitri_codec::Empty;
+use dharitri_sc::codec::Empty;
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub const LAUNCHED_TOKEN_REDEEM_NONCE: u64 = 1;
 pub const ACCEPTED_TOKEN_REDEEM_NONCE: u64 = 2;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait RedeemTokenModule:
     crate::common_storage::CommonStorageModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[only_owner]
     #[payable("MOAX")]
@@ -19,7 +19,7 @@ pub trait RedeemTokenModule:
         token_ticker: ManagedBuffer,
         nr_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value();
+        let payment_amount = self.call_value().moax_value().clone_value();
         self.redeem_token().issue_and_set_all_roles(
             DctTokenType::Meta,
             payment_amount,
@@ -76,7 +76,7 @@ pub trait RedeemTokenModule:
 
     #[view(getRedeemTokenId)]
     #[storage_mapper("redeemTokenId")]
-    fn redeem_token(&self) -> NonFungibleTokenMapper<Self::Api>;
+    fn redeem_token(&self) -> NonFungibleTokenMapper;
 
     #[view(getRedeemTokenTotalCirculatingSupply)]
     #[storage_mapper("totalCirculatingSupply")]

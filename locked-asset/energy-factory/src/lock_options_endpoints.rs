@@ -1,4 +1,4 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use common_structs::{Epoch, Percent};
 
@@ -6,7 +6,7 @@ use crate::lock_options::{
     AllLockOptions, LockOption, EPOCHS_PER_YEAR, MAX_LOCK_OPTIONS, MAX_PENALTY_PERCENTAGE,
 };
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LockOptionsEndpointsModule: crate::lock_options::LockOptionsModule {
     /// Add lock options, as pairs of epochs and penalty percentages.
     /// lock epochs must be >= 360 epochs (1 year),

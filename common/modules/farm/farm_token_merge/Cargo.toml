@@ -1,8 +1,8 @@
 [package]
 name = "farm_token_merge"
 version = "0.0.0"
-authors = [ "catalin-neagu <catalin.neagu@dharitri.com>",]
-edition = "2018"
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/lib.rs"
@@ -22,9 +22,12 @@ path = "../../token_merge_helper"
 [dependencies.farm_token]
 path = "../farm_token"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]
 
-[dependencies.dharitri-wasm-modules]
-version = "=0.10.6"
+[dependencies.dharitri-sc-modules]
+version = "=0.13.6"
+
+[workspace]
+members = ["."]

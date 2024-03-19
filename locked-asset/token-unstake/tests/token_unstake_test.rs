@@ -1,7 +1,9 @@
+#![allow(deprecated)]
+
 mod token_unstake_setup;
 
-use dharitri_wasm::types::{DctTokenPayment, ManagedVec};
-use dharitri_wasm_debug::{
+use dharitri_sc::types::{DctTokenPayment, ManagedVec};
+use dharitri_sc_scenario::{
     managed_address, managed_token_id, managed_token_id_wrapped, rust_biguint, DebugApi,
 };
 use num_bigint::ToBigInt;

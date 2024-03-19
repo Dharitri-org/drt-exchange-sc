@@ -1,7 +1,8 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use common_errors::ERROR_PARAMETERS;
 use common_structs::Epoch;
+use pair::pair_actions::remove_liq::ProxyTrait as _;
 
 pub const MAX_PERCENT: u64 = 10_000;
 pub const DEFAULT_PENALTY_PERCENT: u64 = 100;
@@ -10,7 +11,7 @@ pub const DEFAULT_BURN_GAS_LIMIT: u64 = 50_000_000;
 pub const DEFAULT_NFT_DEPOSIT_MAX_LEN: usize = 10;
 pub const MAX_MINIMUM_FARMING_EPOCHS: u64 = 30;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait ExitPenaltyModule: permissions_module::PermissionsModule {
     #[only_owner]
     #[endpoint]
@@ -47,7 +48,7 @@ pub trait ExitPenaltyModule: permissions_module::PermissionsModule {
             let gas_limit = self.burn_gas_limit().get();
             self.pair_contract_proxy(pair_contract_address)
                 .remove_liquidity_and_burn_token(reward_token_id.clone())
-                .add_dct_token_transfer(farming_token_id.clone(), 0, farming_amount.clone())
+                .with_dct_transfer((farming_token_id.clone(), 0, farming_amount.clone()))
                 .with_gas_limit(gas_limit)
                 .transfer_execute();
         }

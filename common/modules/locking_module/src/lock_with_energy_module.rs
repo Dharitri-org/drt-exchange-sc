@@ -1,8 +1,8 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use energy_factory::virtual_lock::ProxyTrait as _;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LockWithEnergyModule {
     #[only_owner]
     #[endpoint(setLockingScAddress)]

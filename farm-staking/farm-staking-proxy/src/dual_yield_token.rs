@@ -1,7 +1,9 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+use fixed_supply_token::FixedSupplyToken;
 
-#[derive(TypeAbi, TopEncode, TopDecode, PartialEq, Debug)]
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
+
+#[derive(TypeAbi, TopEncode, TopDecode, Clone, PartialEq, Debug)]
 pub struct DualYieldTokenAttributes<M: ManagedTypeApi> {
     pub lp_farm_token_nonce: u64,
     pub lp_farm_token_amount: BigUint<M>,
@@ -9,19 +11,32 @@ pub struct DualYieldTokenAttributes<M: ManagedTypeApi> {
     pub staking_farm_token_amount: BigUint<M>,
 }
 
-impl<M: ManagedTypeApi> DualYieldTokenAttributes<M> {
-    /// dual yield tokens are always created with an amount equal to staking_farm_token_amount,
-    /// so we just return this field instead of duplicating
-    #[inline]
-    pub fn get_total_dual_yield_tokens_for_position(&self) -> &BigUint<M> {
-        &self.staking_farm_token_amount
+impl<M: ManagedTypeApi> FixedSupplyToken<M> for DualYieldTokenAttributes<M> {
+    fn get_total_supply(&self) -> BigUint<M> {
+        self.staking_farm_token_amount.clone()
+    }
+
+    fn into_part(self, payment_amount: &BigUint<M>) -> Self {
+        if payment_amount == &self.get_total_supply() {
+            return self;
+        }
+
+        let new_lp_farm_token_amount =
+            self.rule_of_three_non_zero_result(payment_amount, &self.lp_farm_token_amount);
+        let new_staking_farm_token_amount = payment_amount.clone();
+
+        DualYieldTokenAttributes {
+            lp_farm_token_nonce: self.lp_farm_token_nonce,
+            lp_farm_token_amount: new_lp_farm_token_amount,
+            staking_farm_token_nonce: self.staking_farm_token_nonce,
+            staking_farm_token_amount: new_staking_farm_token_amount,
+        }
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait DualYieldTokenModule:
-    token_merge_helper::TokenMergeHelperModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[only_owner]
     #[payable("MOAX")]
@@ -32,7 +47,7 @@ pub trait DualYieldTokenModule:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let register_cost = self.call_value().moax_value();
+        let register_cost = self.call_value().moax_value().clone_value();
         self.dual_yield_token().issue_and_set_all_roles(
             DctTokenType::Meta,
             register_cost,
@@ -43,83 +58,16 @@ pub trait DualYieldTokenModule:
         );
     }
 
-    fn create_and_send_dual_yield_tokens(
-        &self,
-        to: &ManagedAddress,
-        lp_farm_token_nonce: u64,
-        lp_farm_token_amount: BigUint,
-        staking_farm_token_nonce: u64,
-        staking_farm_token_amount: BigUint,
-    ) -> DctTokenPayment<Self::Api> {
-        let payment = self.create_dual_yield_tokens(
-            lp_farm_token_nonce,
-            lp_farm_token_amount,
-            staking_farm_token_nonce,
-            staking_farm_token_amount,
-        );
-        self.send().direct_dct(
-            to,
-            &payment.token_identifier,
-            payment.token_nonce,
-            &payment.amount,
-        );
-
-        payment
-    }
-
     fn create_dual_yield_tokens(
         &self,
-        lp_farm_token_nonce: u64,
-        lp_farm_token_amount: BigUint,
-        staking_farm_token_nonce: u64,
-        staking_farm_token_amount: BigUint,
-    ) -> DctTokenPayment<Self::Api> {
-        let attributes = DualYieldTokenAttributes {
-            lp_farm_token_nonce,
-            lp_farm_token_amount,
-            staking_farm_token_nonce,
-            staking_farm_token_amount,
-        };
-        let amount = attributes.get_total_dual_yield_tokens_for_position();
-
-        self.dual_yield_token()
-            .nft_create(amount.clone(), &attributes)
-    }
-
-    #[inline]
-    fn burn_dual_yield_tokens(&self, sft_nonce: u64, amount: &BigUint) {
-        self.dual_yield_token().nft_burn(sft_nonce, amount)
-    }
-
-    #[inline]
-    fn get_dual_yield_token_attributes(
-        &self,
-        dual_yield_token_nonce: u64,
-    ) -> DualYieldTokenAttributes<Self::Api> {
-        self.dual_yield_token()
-            .get_token_attributes(dual_yield_token_nonce)
-    }
-
-    fn get_lp_farm_token_amount_equivalent(
-        &self,
+        mapper: &NonFungibleTokenMapper,
         attributes: &DualYieldTokenAttributes<Self::Api>,
-        amount: &BigUint,
-    ) -> BigUint {
-        self.rule_of_three_non_zero_result(
-            amount,
-            attributes.get_total_dual_yield_tokens_for_position(),
-            &attributes.lp_farm_token_amount,
-        )
-    }
-
-    #[inline]
-    fn get_staking_farm_token_amount_equivalent(&self, amount: &BigUint) -> BigUint {
-        // since staking_farm_token_amount is equal to the total dual yield tokens,
-        // we simply return the amount
-        amount.clone()
+    ) -> DctTokenPayment {
+        let new_dual_yield_amount = attributes.get_total_supply();
+        mapper.nft_create(new_dual_yield_amount, attributes)
     }
 
     #[view(getDualYieldTokenId)]
     #[storage_mapper("dualYieldTokenId")]
-    fn dual_yield_token(&self) -> NonFungibleTokenMapper<Self::Api>;
+    fn dual_yield_token(&self) -> NonFungibleTokenMapper;
 }

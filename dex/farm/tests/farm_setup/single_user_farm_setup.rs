@@ -1,13 +1,13 @@
 #![allow(dead_code)]
+#![allow(deprecated)]
 
 use common_structs::FarmTokenAttributes;
-use dharitri_wasm::dharitri_codec::multi_types::OptionalValue;
-use dharitri_wasm::storage::mappers::StorageTokenWrapper;
-use dharitri_wasm::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
-use dharitri_wasm_debug::tx_mock::{TxContextStack, TxInputDCT};
-use dharitri_wasm_debug::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, testing_framework::*,
-    DebugApi,
+use dharitri_sc::codec::multi_types::OptionalValue;
+use dharitri_sc::storage::mappers::StorageTokenWrapper;
+use dharitri_sc::types::{Address, DctLocalRole, ManagedAddress, MultiValueEncoded};
+use dharitri_sc_scenario::whitebox_legacy::{TxContextStack, TxTokenTransfer};
+use dharitri_sc_scenario::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::*, DebugApi,
 };
 
 type RustBigUint = num_bigint::BigUint;
@@ -148,14 +148,14 @@ where
     pub fn enter_farm(
         &mut self,
         farm_in_amount: u64,
-        additional_farm_tokens: &[TxInputDCT],
+        additional_farm_tokens: &[TxTokenTransfer],
         expected_farm_token_nonce: u64,
         expected_reward_per_share: u64,
         expected_entering_epoch: u64,
         expected_compounded_reward: u64,
     ) {
         let mut payments = Vec::with_capacity(1 + additional_farm_tokens.len());
-        payments.push(TxInputDCT {
+        payments.push(TxTokenTransfer {
             token_identifier: LP_TOKEN_ID.to_vec(),
             nonce: 0,
             value: rust_biguint!(farm_in_amount),
@@ -184,7 +184,7 @@ where
             })
             .assert_ok();
 
-        let _ = DebugApi::dummy();
+        DebugApi::dummy();
 
         let expected_attributes = FarmTokenAttributes::<DebugApi> {
             reward_per_share: managed_biguint!(expected_reward_per_share),
@@ -222,13 +222,9 @@ where
                 farm_token_nonce,
                 &rust_biguint!(farm_token_amount),
                 |sc| {
-                    let multi_result = sc.exit_farm_endpoint(
-                        managed_biguint!(farm_token_amount),
-                        OptionalValue::None,
-                    );
+                    let multi_result = sc.exit_farm_endpoint(OptionalValue::None);
 
-                    let (first_result, second_result, remaining_farm_amount) =
-                        multi_result.into_tuple();
+                    let (first_result, second_result) = multi_result.into_tuple();
 
                     assert_eq!(
                         first_result.token_identifier,
@@ -246,7 +242,6 @@ where
                     );
                     assert_eq!(second_result.token_nonce, 0);
                     assert_eq!(second_result.amount, managed_biguint!(expected_mex_out));
-                    assert_eq!(remaining_farm_amount.amount, managed_biguint!(0));
                 },
             )
             .assert_ok();
@@ -300,7 +295,7 @@ where
             )
             .assert_ok();
 
-        let _ = DebugApi::dummy();
+        DebugApi::dummy();
         let expected_attributes = FarmTokenAttributes::<DebugApi> {
             reward_per_share: managed_biguint!(expected_reward_per_share),
             entering_epoch: 0,

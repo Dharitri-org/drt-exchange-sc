@@ -1,6 +1,6 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LockingWrapperModule:
     crate::config::ConfigModule
     + token_send::TokenSendModule
@@ -60,7 +60,7 @@ pub trait LockingWrapperModule:
 
         let payment: MoaxOrDctTokenPayment<Self::Api> = proxy_instance
             .lock_tokens_endpoint(unlock_epoch, opt_dest)
-            .add_dct_token_transfer(token_id, 0, amount)
+            .with_dct_transfer((token_id, 0, amount))
             .execute_on_dest_context();
         let (token_id, token_nonce, amount) = payment.into_tuple();
 

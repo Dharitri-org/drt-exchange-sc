@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use core::convert::TryInto;
 
@@ -10,7 +10,7 @@ pub const EPOCHS_IN_WEEK: Epoch = 7;
 pub const FIRST_WEEK: Week = 1;
 static INVALID_WEEK_ERR_MSG: &[u8] = b"Week 0 is not a valid week";
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait WeekTimekeepingModule {
     /// Week starts from 1
     #[view(getCurrentWeek)]

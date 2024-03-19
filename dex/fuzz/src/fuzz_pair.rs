@@ -1,17 +1,20 @@
 #[cfg(test)]
 pub mod fuzz_pair_test {
+    #![allow(deprecated)]
 
-    dharitri_wasm::imports!();
-    dharitri_wasm::derive_imports!();
+    dharitri_sc::imports!();
+    dharitri_sc::derive_imports!();
 
-    use dharitri_wasm_debug::{
-        managed_biguint, managed_token_id, rust_biguint, tx_mock::TxInputDCT, DebugApi,
+    use dharitri_sc_scenario::{
+        managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::TxTokenTransfer, DebugApi,
     };
 
     use rand::prelude::*;
 
     use crate::fuzz_data::fuzz_data_tests::*;
-    use pair::*;
+    use pair::pair_actions::{
+        add_liq::AddLiquidityModule, remove_liq::RemoveLiquidityModule, swap::SwapModule,
+    };
 
     pub fn add_liquidity<PairObjBuilder, FarmObjBuilder, FactoryObjBuilder, PriceDiscObjBuilder>(
         fuzzer_data: &mut FuzzerData<
@@ -69,12 +72,12 @@ pub mod fuzz_pair_test {
         }
 
         let payments = vec![
-            TxInputDCT {
+            TxTokenTransfer {
                 token_identifier: first_token.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(first_token_amount),
             },
-            TxInputDCT {
+            TxTokenTransfer {
                 token_identifier: second_token.to_vec(),
                 nonce: 0,
                 value: rust_biguint!(second_token_amount),
@@ -179,7 +182,7 @@ pub mod fuzz_pair_test {
             return;
         }
 
-        let payments = vec![TxInputDCT {
+        let payments = vec![TxTokenTransfer {
             token_identifier: lp_token.to_vec(),
             nonce: 0,
             value: rust_biguint!(lp_token_amount),

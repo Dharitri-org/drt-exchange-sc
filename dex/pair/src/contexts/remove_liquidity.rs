@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 pub struct RemoveLiquidityContext<M: ManagedTypeApi> {
     pub lp_token_payment_amount: BigUint<M>,

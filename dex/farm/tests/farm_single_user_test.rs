@@ -1,12 +1,15 @@
+#![allow(deprecated)]
+
 mod farm_setup;
 
 use config::ConfigModule;
-use dharitri_wasm::types::DctLocalRole;
-use dharitri_wasm_debug::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, tx_mock::TxInputDCT,
-    DebugApi,
-};
 use farm_setup::single_user_farm_setup::*;
+use dharitri_sc::types::DctLocalRole;
+use dharitri_sc_scenario::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint,
+    whitebox_legacy::TxTokenTransfer, DebugApi,
+};
+use sc_whitelist_module::SCWhitelistModule;
 
 #[test]
 fn test_farm_setup() {
@@ -120,7 +123,7 @@ where
     farm_setup.set_block_nonce(10);
 
     let second_farm_in_amount = 200_000_000;
-    let prev_farm_tokens = [TxInputDCT {
+    let prev_farm_tokens = [TxTokenTransfer {
         token_identifier: FARM_TOKEN_ID.to_vec(),
         nonce: expected_farm_token_nonce,
         value: rust_biguint!(farm_in_amount),
@@ -195,7 +198,7 @@ fn test_exit_farm_after_enter_twice() {
 
 #[test]
 fn test_farm_through_simple_lock() {
-    use dharitri_wasm::storage::mappers::StorageTokenWrapper;
+    use dharitri_sc::storage::mappers::StorageTokenWrapper;
     use simple_lock::locked_token::LockedTokenModule;
     use simple_lock::proxy_farm::ProxyFarmModule;
     use simple_lock::proxy_farm::*;
@@ -206,22 +209,10 @@ fn test_farm_through_simple_lock() {
     const LOCKED_LP_TOKEN_ID: &[u8] = b"LKLP-123456";
     const FARM_PROXY_TOKEN_ID: &[u8] = b"PROXY-123456";
 
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let rust_zero = rust_biguint!(0);
     let mut farm_setup = SingleUserFarmSetup::new(farm::contract_obj);
     let b_mock = &mut farm_setup.blockchain_wrapper;
-
-    // change farming token for farm
-    b_mock
-        .execute_tx(
-            &farm_setup.owner_address,
-            &farm_setup.farm_wrapper,
-            &rust_zero,
-            |sc| {
-                sc.farming_token_id().set(&managed_token_id!(LP_TOKEN_ID));
-            },
-        )
-        .assert_ok();
 
     // setup simple lock SC
     let lock_wrapper = b_mock.create_sc_account(
@@ -247,6 +238,19 @@ fn test_farm_through_simple_lock() {
                 FarmType::SimpleFarm,
             );
         })
+        .assert_ok();
+
+    // change farming token for farm + whitelist simple lock contract
+    b_mock
+        .execute_tx(
+            &farm_setup.owner_address,
+            &farm_setup.farm_wrapper,
+            &rust_zero,
+            |sc| {
+                sc.farming_token_id().set(&managed_token_id!(LP_TOKEN_ID));
+                sc.add_sc_address_to_whitelist(managed_address!(lock_wrapper.address_ref()));
+            },
+        )
         .assert_ok();
 
     b_mock.set_dct_local_roles(
@@ -392,7 +396,7 @@ fn test_farm_through_simple_lock() {
             2,
             &rust_biguint!(1_000_000_000),
             |sc| {
-                let exit_farm_result = sc.exit_farm_locked_token(managed_biguint!(1_000_000_000));
+                let exit_farm_result = sc.exit_farm_locked_token();
                 let (locked_tokens, reward_tokens) = exit_farm_result.into_tuple();
 
                 assert_eq!(
@@ -467,12 +471,12 @@ fn test_farm_through_simple_lock() {
 
     // user enter farm along with previous position
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_LP_TOKEN_ID.to_vec(),
             nonce: 1,
             value: rust_biguint!(300_000_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: FARM_PROXY_TOKEN_ID.to_vec(),
             nonce: 3,
             value: rust_biguint!(500_000_000),
@@ -532,22 +536,22 @@ fn test_farm_through_simple_lock() {
         .assert_ok();
 
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_LP_TOKEN_ID.to_vec(),
             nonce: 1,
             value: rust_biguint!(100_000_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: FARM_PROXY_TOKEN_ID.to_vec(),
             nonce: 4,
             value: rust_biguint!(800_000_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: FARM_PROXY_TOKEN_ID.to_vec(),
             nonce: 5,
             value: rust_biguint!(50_000_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: FARM_PROXY_TOKEN_ID.to_vec(),
             nonce: 6,
             value: rust_biguint!(50_000_000),
@@ -590,7 +594,7 @@ fn test_farm_through_simple_lock() {
             7,
             &rust_biguint!(1_000_000_000),
             |sc| {
-                let exit_farm_result = sc.exit_farm_locked_token(managed_biguint!(1_000_000_000));
+                let exit_farm_result = sc.exit_farm_locked_token();
                 let (locked_tokens, _reward_tokens) = exit_farm_result.into_tuple();
 
                 assert_eq!(

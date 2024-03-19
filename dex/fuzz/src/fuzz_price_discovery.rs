@@ -1,10 +1,11 @@
 #[cfg(test)]
 pub mod fuzz_price_discovery_test {
+    #![allow(deprecated)]
 
-    dharitri_wasm::imports!();
-    dharitri_wasm::derive_imports!();
+    dharitri_sc::imports!();
+    dharitri_sc::derive_imports!();
 
-    use dharitri_wasm_debug::{rust_biguint, DebugApi};
+    use dharitri_sc_scenario::{rust_biguint, DebugApi};
 
     use rand::prelude::*;
 

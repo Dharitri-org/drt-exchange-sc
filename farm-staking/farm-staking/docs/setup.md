@@ -36,7 +36,7 @@ fn register_farm_token(
 )
 ```
 
-For issue parameters format restrictions, take a look here: https://docs.dharitri.com/developers/dct-tokens/#parameters-format
+For issue parameters format restrictions, take a look here: https://docs.dharitri.com/tokens/dct-tokens#parameters-format
 
 payment_amount should be `0.05 MOAX`.
 

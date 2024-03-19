@@ -1,17 +1,20 @@
-use dharitri_wasm::{
+#![allow(deprecated)]
+
+use dharitri_sc::{
+    codec::multi_types::OptionalValue,
     storage::mappers::StorageTokenWrapper,
     types::{Address, BigInt, DctLocalRole, MultiValueEncoded},
 };
-use dharitri_wasm_debug::{
+use dharitri_sc_scenario::{
     managed_address, managed_biguint, managed_token_id, managed_token_id_wrapped, rust_biguint,
-    testing_framework::*, tx_mock::TxResult, DebugApi,
+    whitebox_legacy::TxResult, whitebox_legacy::*, DebugApi,
 };
 
-use dharitri_wasm_modules::pause::PauseModule;
 use energy_factory::{energy::EnergyModule, SimpleLockEnergy};
 use energy_query::{Energy, EnergyQueryModule};
 use fees_collector::{config::ConfigModule, fees_accumulation::FeesAccumulationModule, *};
 use locking_module::lock_with_energy_module::LockWithEnergyModule;
+use dharitri_sc_modules::pause::PauseModule;
 use sc_whitelist_module::SCWhitelistModule;
 use simple_lock::locked_token::{LockedTokenAttributes, LockedTokenModule};
 use week_timekeeping::{Week, WeekTimekeepingModule, EPOCHS_IN_WEEK};
@@ -105,7 +108,7 @@ where
             &rust_biguint!(USER_BALANCE * 2),
         );
 
-        let _ = DebugApi::dummy();
+        DebugApi::dummy();
 
         b_mock.set_nft_balance(
             &depositor_address,
@@ -222,7 +225,22 @@ where
     pub fn claim(&mut self, user: &Address) -> TxResult {
         self.b_mock
             .execute_tx(user, &self.fc_wrapper, &rust_biguint!(0), |sc| {
-                let _ = sc.claim_rewards();
+                let _ = sc.claim_rewards_endpoint(OptionalValue::None);
+            })
+    }
+
+    pub fn claim_for_user(&mut self, owner: &Address, broker: &Address) -> TxResult {
+        self.b_mock
+            .execute_tx(broker, &self.fc_wrapper, &rust_biguint!(0), |sc| {
+                let _ = sc.claim_boosted_rewards(OptionalValue::Some(managed_address!(owner)));
+            })
+    }
+
+    pub fn allow_external_claim_rewards(&mut self, user: &Address) -> TxResult {
+        self.b_mock
+            .execute_tx(user, &self.fc_wrapper, &rust_biguint!(0), |sc| {
+                sc.allow_external_claim_rewards(&managed_address!(user))
+                    .set(true);
             })
     }
 

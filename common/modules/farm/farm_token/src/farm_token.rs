@@ -1,15 +1,14 @@
 #![no_std]
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use common_structs::Nonce;
-use dharitri_wasm::dharitri_codec::TopEncode;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait FarmTokenModule:
     permissions_module::PermissionsModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[payable("MOAX")]
     #[endpoint(registerFarmToken)]
@@ -21,7 +20,7 @@ pub trait FarmTokenModule:
     ) {
         self.require_caller_has_owner_or_admin_permissions();
 
-        let payment_amount = self.call_value().moax_value();
+        let payment_amount = self.call_value().moax_value().clone_value();
         self.farm_token().issue_and_set_all_roles(
             DctTokenType::Meta,
             payment_amount,
@@ -86,7 +85,7 @@ pub trait FarmTokenModule:
 
     #[view(getFarmTokenId)]
     #[storage_mapper("farm_token_id")]
-    fn farm_token(&self) -> NonFungibleTokenMapper<Self::Api>;
+    fn farm_token(&self) -> NonFungibleTokenMapper;
 
     #[view(getFarmTokenSupply)]
     #[storage_mapper("farm_token_supply")]

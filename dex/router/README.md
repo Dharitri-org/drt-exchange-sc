@@ -16,7 +16,7 @@ This contract allows:
 
 - Keeping track
 
-of Pair smart contracts deployed as part of Maiar Exchange.
+of Pair smart contracts deployed as part of xExchange.
 
 ## Endpoints
 
@@ -89,14 +89,14 @@ In order to simplify the issuing of LP tokens and their management, the Router s
 
 There are four test suites around this contract:
 
-- __denali__ tests are located in the _dex/denali_ directory. The tests can be ran using __denali-test__
-- __rust__ tests are written using __rust_testing_framework__. The tests can be ran as any other rust test using __cargo-test__. This test suite is to be preferred and will be extended and maintained over the denali tests because the testing framework offers programmatic testing.
+- __scenario__ tests are located in the _dex/scenarios_ directory. The tests can be ran using __denali-test__
+- __rust__ tests are written using __rust_testing_framework__. The tests can be ran as any other rust test using __cargo-test__. This test suite is to be preferred and will be extended and maintained over the scenario tests because the testing framework offers programmatic testing.
 - __legolas__ tests are python scripts that use actual live transactions on testing setups
 
 ## Interaction
 
-The interaction scripts are located in the _dex/interaction_ directory. They are written in python and moapy is required in order to be used. Interaction scripts are scripts that ease the interaction with the deployed contract by wrapping moapy sdk functionality in bash scripts. Make sure to update the PEM path and the PROXY and CHAINID values in order to correctly use them.
+The interaction scripts are located in the _dex/interaction_ directory. They are written in python and mxpy is required in order to be used. Interaction scripts are scripts that ease the interaction with the deployed contract by wrapping mxpy sdk functionality in bash scripts. Make sure to update the PEM path and the PROXY and CHAINID values in order to correctly use them.
 
 ## Deployment
 
-The deployment of this contract is done using moapy, interaction scripts, or any other tool, in a standalone manner or by previously deploying the template pair smart contract.
+The deployment of this contract is done using mxpy, interaction scripts, or any other tool, in a standalone manner or by previously deploying the template pair smart contract.

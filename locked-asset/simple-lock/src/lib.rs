@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub mod basic_lock_unlock;
 pub mod error_messages;
@@ -11,11 +11,11 @@ pub mod proxy_farm;
 pub mod proxy_lp;
 pub mod token_attributes;
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait SimpleLock:
     basic_lock_unlock::BasicLockUnlock
     + locked_token::LockedTokenModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + proxy_lp::ProxyLpModule
     + proxy_farm::ProxyFarmModule
     + lp_interactions::LpInteractionsModule
@@ -24,6 +24,9 @@ pub trait SimpleLock:
 {
     #[init]
     fn init(&self) {}
+
+    #[endpoint]
+    fn upgrade(&self) {}
 
     /// Locks any token (including MOAX) until `unlock_epoch` and receive meta DCT LOCKED tokens.
     /// on a 1:1 ratio. If unlock epoch has already passed, the original tokens are sent instead.

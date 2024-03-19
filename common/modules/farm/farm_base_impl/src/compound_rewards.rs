@@ -1,6 +1,6 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-use crate::{base_traits_impl::FarmContract, dharitri_codec::TopEncode};
+use crate::base_traits_impl::FarmContract;
 use common_errors::ERROR_DIFFERENT_TOKEN_IDS;
 use common_structs::{PaymentAttributesPair, PaymentsVec};
 use contexts::{
@@ -21,7 +21,7 @@ where
     pub created_with_merge: bool,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait BaseCompoundRewardsModule:
     rewards::RewardsModule
     + config::ConfigModule
@@ -29,8 +29,7 @@ pub trait BaseCompoundRewardsModule:
     + farm_token::FarmTokenModule
     + pausable::PausableModule
     + permissions_module::PermissionsModule
-    + events::EventsModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::base_farm_validation::BaseFarmValidationModule
     + utils::UtilsModule
 {
@@ -47,7 +46,7 @@ pub trait BaseCompoundRewardsModule:
         );
 
         let compound_rewards_context = CompoundRewardsContext::<Self::Api, FC::AttributesType>::new(
-            payments,
+            payments.clone(),
             &storage_cache.farm_token_id,
             self.blockchain(),
         );
@@ -71,10 +70,12 @@ pub trait BaseCompoundRewardsModule:
         storage_cache.reward_reserve -= &reward;
         storage_cache.farm_token_supply += &reward;
 
+        FC::check_and_update_user_farm_position(self, &caller, &payments);
+
         let farm_token_mapper = self.farm_token();
         let base_attributes = FC::create_compound_rewards_initial_attributes(
             self,
-            caller,
+            caller.clone(),
             token_attributes,
             storage_cache.reward_per_share.clone(),
             &reward,
@@ -85,9 +86,12 @@ pub trait BaseCompoundRewardsModule:
             &farm_token_mapper,
         );
 
+        FC::increase_user_farm_position(self, &caller, &reward);
+
         let first_farm_token = &compound_rewards_context.first_farm_token.payment;
         farm_token_mapper.nft_burn(first_farm_token.token_nonce, &first_farm_token.amount);
-        self.burn_multi_dct(&compound_rewards_context.additional_payments);
+        self.send()
+            .dct_local_burn_multi(&compound_rewards_context.additional_payments);
 
         InternalCompoundRewardsResult {
             created_with_merge: !compound_rewards_context.additional_payments.is_empty(),

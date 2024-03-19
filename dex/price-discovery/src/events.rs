@@ -1,7 +1,7 @@
 use crate::phase::Phase;
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 #[derive(TypeAbi, TopEncode)]
 pub struct DepositEvent<M: ManagedTypeApi> {
@@ -38,7 +38,7 @@ pub struct RedeemEvent<M: ManagedTypeApi> {
     bought_token_amount: BigUint<M>,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait EventsModule: crate::common_storage::CommonStorageModule {
     fn emit_deposit_event(
         &self,

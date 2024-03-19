@@ -1,8 +1,8 @@
 [package]
 name = "config"
 version = "0.0.0"
-authors = [ "catalin-neagu <catalin.neagu@dharitri.com>",]
-edition = "2018"
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/config.rs"
@@ -22,6 +22,6 @@ path = "../../pausable"
 [dependencies.permissions_module]
 path = "../../permissions_module"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]

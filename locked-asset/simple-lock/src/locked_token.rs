@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 #[derive(TypeAbi, TopEncode, TopDecode, NestedDecode, NestedEncode, PartialEq, Debug, Clone)]
 pub struct LockedTokenAttributes<M: ManagedTypeApi> {
@@ -48,10 +48,10 @@ impl<M: ManagedTypeApi> UnlockedPaymentWrapper<M> {
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LockedTokenModule:
     crate::token_attributes::TokenAttributesModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     #[only_owner]
     #[payable("MOAX")]
@@ -62,7 +62,7 @@ pub trait LockedTokenModule:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value();
+        let payment_amount = self.call_value().moax_value().clone_value();
 
         self.locked_token().issue_and_set_all_roles(
             DctTokenType::Meta,
@@ -117,5 +117,5 @@ pub trait LockedTokenModule:
 
     #[view(getLockedTokenId)]
     #[storage_mapper("lockedTokenId")]
-    fn locked_token(&self) -> NonFungibleTokenMapper<Self::Api>;
+    fn locked_token(&self) -> NonFungibleTokenMapper;
 }

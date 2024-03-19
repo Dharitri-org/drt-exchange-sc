@@ -1,13 +1,15 @@
+#![allow(deprecated)]
+
 mod token_unstake_setup;
 
-use dharitri_wasm_debug::{managed_address, managed_biguint, DebugApi};
 use energy_factory::energy::EnergyModule;
 use energy_query::Energy;
+use dharitri_sc_scenario::{managed_address, managed_biguint, DebugApi};
 use token_unstake_setup::*;
 
 #[test]
 fn double_unlock_early_test() {
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let mut setup =
         TokenUnstakeSetup::new(energy_factory::contract_obj, token_unstake::contract_obj);
     let first_user = setup.first_user.clone();

@@ -1,9 +1,9 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use crate::config;
 use crate::errors::*;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait Validation: config::Config {
     fn require_is_accepted_payment(&self, payment: &DctTokenPayment<Self::Api>) {
         require!(

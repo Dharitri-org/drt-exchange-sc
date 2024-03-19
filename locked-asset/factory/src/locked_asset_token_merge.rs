@@ -1,20 +1,20 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use common_structs::*;
 
-use crate::attr_ex_helper::{self, PRECISION_EX_INCREASE};
+use crate::attr_ex_helper;
 
 use super::locked_asset;
 use super::locked_asset::{LockedTokenEx, DOUBLE_MAX_MILESTONES_IN_SCHEDULE, ONE_MILLION};
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LockedAssetTokenMergeModule:
     locked_asset::LockedAssetModule
     + token_send::TokenSendModule
     + token_merge_helper::TokenMergeHelperModule
     + attr_ex_helper::AttrExHelper
-    + dharitri_wasm_modules::pause::PauseModule
+    + dharitri_sc_modules::pause::PauseModule
 {
     #[payable("*")]
     #[endpoint(mergeTokens)]

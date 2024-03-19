@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use common_structs::{Nonce, UnlockScheduleEx};
 
@@ -7,7 +7,7 @@ use crate::attr_ex_helper;
 
 use super::locked_asset;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait CacheModule:
     locked_asset::LockedAssetModule + token_send::TokenSendModule + attr_ex_helper::AttrExHelper
 {

@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub static CANNOT_MERGE_ERR_MSG: &[u8] = b"Cannot merge";
 

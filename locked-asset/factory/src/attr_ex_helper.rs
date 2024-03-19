@@ -2,17 +2,12 @@ use common_structs::LockedAssetTokenAttributes;
 use common_structs::LockedAssetTokenAttributesEx;
 use common_structs::UnlockMilestoneEx;
 use common_structs::UnlockScheduleEx;
+use common_structs::PRECISION_EX_INCREASE;
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
-// 1% = 1_000;
-pub const _PRECISION_EXTENDED: u64 = 100_000u64;
-
-// From 1 to 1_000;
-pub const PRECISION_EX_INCREASE: u64 = 1_000u64;
-
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait AttrExHelper {
     fn get_attributes_ex(
         &self,

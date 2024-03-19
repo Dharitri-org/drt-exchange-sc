@@ -8,20 +8,19 @@ pub mod locked_asset;
 pub mod locked_asset_token_merge;
 pub mod migration;
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 const ADDITIONAL_AMOUNT_TO_CREATE: u64 = 1;
 const FIRST_TOKEN_NONCE: u64 = 1;
 const EPOCHS_IN_MONTH: u64 = 30;
 
-use attr_ex_helper::PRECISION_EX_INCREASE;
 use common_structs::{
     Epoch, LockedAssetTokenAttributesEx, UnlockMilestone, UnlockMilestoneEx, UnlockPeriod,
-    UnlockSchedule, UnlockScheduleEx,
+    UnlockSchedule, UnlockScheduleEx, PRECISION_EX_INCREASE,
 };
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait LockedAssetFactory:
     locked_asset::LockedAssetModule
     + cache::CacheModule
@@ -30,9 +29,9 @@ pub trait LockedAssetFactory:
     + locked_asset_token_merge::LockedAssetTokenMergeModule
     + events::EventsModule
     + attr_ex_helper::AttrExHelper
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + migration::LockedTokenMigrationModule
-    + dharitri_wasm_modules::pause::PauseModule
+    + dharitri_sc_modules::pause::PauseModule
 {
     #[init]
     fn init(
@@ -44,10 +43,7 @@ pub trait LockedAssetFactory:
             asset_token_id.is_valid_dct_identifier(),
             "Asset token ID is not a valid dct identifier"
         );
-        require!(
-            asset_token_id != self.locked_asset_token().get_token_id(),
-            "Asset token ID cannot be the same as Locked asset token ID"
-        );
+
         let unlock_milestones = default_unlock_period.to_vec();
         self.validate_unlock_milestones(&unlock_milestones);
 
@@ -66,6 +62,9 @@ pub trait LockedAssetFactory:
 
         self.set_paused(true);
     }
+
+    #[endpoint]
+    fn upgrade(&self) {}
 
     fn set_extended_attributes_activation_nonce(&self, is_sc_upgrade: bool) {
         if !self.extended_attributes_activation_nonce().is_empty() {
@@ -335,7 +334,7 @@ pub trait LockedAssetFactory:
         token_ticker: ManagedBuffer,
         num_decimals: usize,
     ) {
-        let payment_amount = self.call_value().moax_value();
+        let payment_amount = self.call_value().moax_value().clone_value();
         self.locked_asset_token().issue_and_set_all_roles(
             DctTokenType::Meta,
             payment_amount,

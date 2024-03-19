@@ -1,6 +1,6 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-use crate::{base_traits_impl::FarmContract, dharitri_codec::TopEncode};
+use crate::base_traits_impl::FarmContract;
 use common_structs::{PaymentAttributesPair, PaymentsVec};
 use contexts::{
     claim_rewards_context::ClaimRewardsContext,
@@ -20,7 +20,7 @@ where
     pub created_with_merge: bool,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait BaseClaimRewardsModule:
     rewards::RewardsModule
     + config::ConfigModule
@@ -28,8 +28,7 @@ pub trait BaseClaimRewardsModule:
     + farm_token::FarmTokenModule
     + pausable::PausableModule
     + permissions_module::PermissionsModule
-    + events::EventsModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::base_farm_validation::BaseFarmValidationModule
     + utils::UtilsModule
 {
@@ -59,7 +58,7 @@ pub trait BaseClaimRewardsModule:
         self.validate_contract_state(storage_cache.contract_state, &storage_cache.farm_token_id);
 
         let claim_rewards_context = ClaimRewardsContext::<Self::Api, FC::AttributesType>::new(
-            payments,
+            payments.clone(),
             &storage_cache.farm_token_id,
             self.blockchain(),
         );
@@ -81,6 +80,8 @@ pub trait BaseClaimRewardsModule:
             &storage_cache,
         );
         storage_cache.reward_reserve -= &reward;
+
+        FC::check_and_update_user_farm_position(self, &caller, &payments);
 
         let farm_token_mapper = self.farm_token();
         let base_attributes = FC::create_claim_rewards_initial_attributes(
@@ -105,7 +106,8 @@ pub trait BaseClaimRewardsModule:
 
         let first_farm_token = &claim_rewards_context.first_farm_token.payment;
         farm_token_mapper.nft_burn(first_farm_token.token_nonce, &first_farm_token.amount);
-        self.burn_multi_dct(&claim_rewards_context.additional_payments);
+        self.send()
+            .dct_local_burn_multi(&claim_rewards_context.additional_payments);
 
         InternalClaimRewardsResult {
             created_with_merge: !claim_rewards_context.additional_payments.is_empty(),

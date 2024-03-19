@@ -1,21 +1,21 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use crate::config;
 
 mod price_provider_proxy {
-    dharitri_wasm::imports!();
+    dharitri_sc::imports!();
 
-    #[dharitri_wasm::proxy]
+    #[dharitri_sc::proxy]
     pub trait PriceProvider {
-        #[endpoint(updateAndGetTokensForGivenPositionWithSafePrice)]
-        fn update_and_get_tokens_for_given_position_with_safe_price(
+        #[endpoint(getTokensForGivenPositionWithSafePrice)]
+        fn get_tokens_for_given_position_with_safe_price(
             &self,
             liquidity: BigUint,
         ) -> MultiValue2<DctTokenPayment<Self::Api>, DctTokenPayment<Self::Api>>;
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait Lib: config::Config {
     fn get_vote_weight(&self, payment: &DctTokenPayment<Self::Api>) -> BigUint {
         let mex_token_id = self.mex_token_id().get();
@@ -27,9 +27,7 @@ pub trait Lib: config::Config {
         if let Some(provider) = self.price_providers().get(&payment.token_identifier) {
             let call_result: MultiValue2<DctTokenPayment<Self::Api>, DctTokenPayment<Self::Api>> =
                 self.price_provider_proxy(provider)
-                    .update_and_get_tokens_for_given_position_with_safe_price(
-                        payment.amount.clone(),
-                    )
+                    .get_tokens_for_given_position_with_safe_price(payment.amount.clone())
                     .execute_on_dest_context();
             let (token1, token2) = call_result.into_tuple();
 

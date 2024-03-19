@@ -1,11 +1,12 @@
 #![allow(dead_code)]
+#![allow(deprecated)]
 
-use dharitri_wasm::dharitri_codec::multi_types::OptionalValue;
-use dharitri_wasm::storage::mappers::StorageTokenWrapper;
-use dharitri_wasm::types::{Address, BigUint, DctLocalRole, ManagedAddress, MultiValueEncoded};
-use dharitri_wasm_debug::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, testing_framework::*,
-    tx_mock::TxInputDCT, DebugApi,
+use dharitri_sc::codec::multi_types::OptionalValue;
+use dharitri_sc::storage::mappers::StorageTokenWrapper;
+use dharitri_sc::types::{Address, BigUint, DctLocalRole, ManagedAddress, MultiValueEncoded};
+use dharitri_sc_scenario::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint,
+    whitebox_legacy::TxTokenTransfer, whitebox_legacy::*, DebugApi,
 };
 pub type RustBigUint = num_bigint::BigUint;
 
@@ -139,7 +140,7 @@ where
     }
 
     pub fn enter_farm(&mut self, caller: &Address, farm_in_amount: RustBigUint) {
-        let payments = vec![TxInputDCT {
+        let payments = vec![TxTokenTransfer {
             token_identifier: LP_TOKEN_ID.to_vec(),
             nonce: 0,
             value: farm_in_amount,
@@ -182,12 +183,11 @@ where
                 &self.farm_wrapper,
                 FARM_TOKEN_ID,
                 farm_token_nonce,
-                &farm_out_amount.clone(),
+                &farm_out_amount,
                 |sc| {
-                    let exit_amount = to_managed_biguint(farm_out_amount);
-                    let multi_result = sc.exit_farm_endpoint(exit_amount, OptionalValue::None);
+                    let multi_result = sc.exit_farm_endpoint(OptionalValue::None);
 
-                    let (first_result, second_result, _third_result) = multi_result.into_tuple();
+                    let (first_result, second_result) = multi_result.into_tuple();
 
                     assert_eq!(
                         first_result.token_identifier,

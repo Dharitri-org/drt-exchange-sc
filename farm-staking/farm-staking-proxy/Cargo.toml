@@ -1,25 +1,28 @@
 [package]
 name = "farm-staking-proxy"
 version = "0.0.0"
-authors = [ "you",]
-edition = "2018"
+authors = ["Dharitri <contact@dharitri.com>"]
+edition = "2021"
 publish = false
 
 [lib]
 path = "src/lib.rs"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
-
-[dependencies.dharitri-wasm-modules]
-version = "=0.10.6"
-
 [dependencies]
 hex-literal = "0.3.1"
 
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]
+
+[dependencies.dharitri-sc-modules]
+version = "=0.13.6"
+
 [dependencies.farm]
 path = "../../dex/farm"
+
+[dependencies.farm-with-locked-rewards]
+path = "../../dex/farm-with-locked-rewards"
 
 [dependencies.farm-staking]
 path = "../farm-staking"
@@ -30,17 +33,8 @@ path = "../../dex/pair"
 [dependencies.pausable]
 path = "../../common/modules/pausable"
 
-[dependencies.token_merge_helper]
-path = "../../common/modules/token_merge_helper"
-
 [dependencies.common_structs]
 path = "../../common/common_structs"
-
-[dev-dependencies.dharitri-wasm-debug]
-version = "=0.10.6"
-
-[dev-dependencies]
-num-bigint = "0.4.2"
 
 [dependencies.config]
 path = "../../common/modules/farm/config"
@@ -48,11 +42,44 @@ path = "../../common/modules/farm/config"
 [dependencies.rewards]
 path = "../../common/modules/farm/rewards"
 
+[dependencies.utils]
+path = "../../common/modules/utils"
+
+[dependencies.token_send]
+path = "../../common/modules/token_send"
+
+[dependencies.fixed-supply-token]
+path = "../../common/traits/fixed-supply-token"
+
+[dependencies.mergeable]
+path = "../../common/traits/mergeable"
+
+[dependencies.unwrappable]
+path = "../../common/traits/unwrappable"
+
+[dependencies.sc_whitelist_module]
+path = "../../common/modules/sc_whitelist_module"
+
+[dependencies.energy-query]
+path = "../../energy-integration/common-modules/energy-query"
+
+[dev-dependencies]
+num-bigint = "0.4.2"
+
+[dev-dependencies.dharitri-sc-scenario]
+version = "=0.13.6"
+
 [dev-dependencies.farm_token]
 path = "../../common/modules/farm/farm_token"
 
-[dev-dependencies.sc_whitelist_module]
-path = "../../common/modules/sc_whitelist_module"
-
 [dev-dependencies.farm-boosted-yields]
 path = "../../energy-integration/farm-boosted-yields"
+
+[dev-dependencies.energy-factory]
+path = "../../locked-asset/energy-factory"
+
+[dev-dependencies.simple-lock]
+path = "../../locked-asset/simple-lock"
+
+[dev-dependencies.locking_module]
+path = "../../common/modules/locking_module"

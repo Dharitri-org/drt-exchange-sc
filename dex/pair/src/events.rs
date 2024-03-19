@@ -3,8 +3,8 @@ use crate::contexts::base::StorageCache;
 use crate::contexts::remove_liquidity::RemoveLiquidityContext;
 use crate::contexts::swap::SwapContext;
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 #[derive(TypeAbi, TopEncode)]
 pub struct SwapEvent<M: ManagedTypeApi> {
@@ -68,7 +68,7 @@ pub struct RemoveLiquidityEvent<M: ManagedTypeApi> {
     timestamp: u64,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait EventsModule:
     crate::config::ConfigModule
     + token_send::TokenSendModule

@@ -1,4 +1,4 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use crate::{
     AddLiquidityResultType, RemoveLiquidityResultType, SwapTokensFixedInputResultType,
@@ -10,7 +10,7 @@ use super::{
     remove_liquidity::RemoveLiquidityContext, swap::SwapContext,
 };
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait OutputBuilderModule:
     crate::config::ConfigModule
     + token_send::TokenSendModule
@@ -50,11 +50,6 @@ pub trait OutputBuilderModule:
     ) -> ManagedVec<DctTokenPayment<Self::Api>> {
         let mut payments: ManagedVec<DctTokenPayment<Self::Api>> = ManagedVec::new();
 
-        payments.push(DctTokenPayment::new(
-            storage_cache.lp_token_id.clone(),
-            0,
-            add_liq_context.liq_added.clone(),
-        ));
         payments.push(DctTokenPayment::new(
             storage_cache.first_token_id.clone(),
             0,

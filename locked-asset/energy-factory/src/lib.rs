@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub mod energy;
 pub mod events;
@@ -24,11 +24,11 @@ use unwrappable::Unwrappable;
 
 use crate::energy::Energy;
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait SimpleLockEnergy:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + simple_lock::token_attributes::TokenAttributesModule
     + token_whitelist::TokenWhitelistModule
     + energy::EnergyModule
@@ -39,7 +39,7 @@ pub trait SimpleLockEnergy:
     + extend_lock::ExtendLockModule
     + migration::SimpleLockMigrationModule
     + events::EventsModule
-    + dharitri_wasm_modules::pause::PauseModule
+    + dharitri_sc_modules::pause::PauseModule
     + local_roles::LocalRolesModule
     + token_merging::TokenMergingModule
     + penalty::LocalPenaltyModule
@@ -47,6 +47,7 @@ pub trait SimpleLockEnergy:
     + virtual_lock::VirtualLockModule
     + sc_whitelist_module::SCWhitelistModule
     + locked_token_transfer::LockedTokenTransferModule
+    + legacy_token_decode_module::LegacyTokenDecodeModule
 {
     /// Args:
     /// - base_asset_token_id: The only token that is accepted for the lockTokens endpoint.
@@ -90,6 +91,9 @@ pub trait SimpleLockEnergy:
         self.set_paused(true);
     }
 
+    #[endpoint]
+    fn upgrade(&self) {}
+
     /// Locks a whitelisted token until `unlock_epoch` and receive meta DCT LOCKED tokens
     /// on a 1:1 ratio. Accepted input tokens:
     /// - base asset token
@@ -117,6 +121,10 @@ pub trait SimpleLockEnergy:
         let dest_address = self.dest_from_optional(opt_destination);
         let current_epoch = self.blockchain().get_block_epoch();
         let unlock_epoch = self.unlock_epoch_to_start_of_month(current_epoch + lock_epochs);
+        require!(
+            unlock_epoch > current_epoch,
+            "Unlock epoch must be greater than the current epoch"
+        );
 
         let output_tokens =
             self.lock_by_token_type(&dest_address, payment, unlock_epoch, current_epoch);
@@ -177,5 +185,49 @@ pub trait SimpleLockEnergy:
         );
 
         output_payment
+    }
+
+    /// Used internally by proxy-dex
+    #[payable("*")]
+    #[endpoint(extendLockPeriod)]
+    fn extend_lock_period(&self, lock_epochs: Epoch, user: ManagedAddress) -> DctTokenPayment {
+        self.require_not_paused();
+        self.require_is_listed_lock_option(lock_epochs);
+
+        let caller = self.blockchain().get_caller();
+        require!(
+            self.token_transfer_whitelist().contains(&caller),
+            "May not call this endpoint. Use lockTokens instead"
+        );
+
+        let payment = self.call_value().single_dct();
+        self.locked_token()
+            .require_same_token(&payment.token_identifier);
+
+        let current_epoch = self.blockchain().get_block_epoch();
+        let unlock_epoch = self.unlock_epoch_to_start_of_month(current_epoch + lock_epochs);
+        require!(
+            unlock_epoch > current_epoch,
+            "Unlock epoch must be greater than the current epoch"
+        );
+
+        let output_tokens = self.update_energy(&user, |energy: &mut Energy<Self::Api>| {
+            self.extend_new_token_period(payment.clone(), unlock_epoch, current_epoch, energy)
+        });
+
+        self.send().dct_local_burn(
+            &payment.token_identifier,
+            payment.token_nonce,
+            &payment.amount,
+        );
+
+        self.send().direct_dct(
+            &caller,
+            &output_tokens.token_identifier,
+            output_tokens.token_nonce,
+            &output_tokens.amount,
+        );
+
+        output_tokens
     }
 }

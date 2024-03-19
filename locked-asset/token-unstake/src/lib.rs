@@ -1,6 +1,6 @@
 #![no_std]
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 pub mod cancel_unstake;
 pub mod events;
@@ -10,7 +10,7 @@ pub mod unbond_tokens;
 
 use crate::fees_handler::MAX_PENALTY_PERCENTAGE;
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait TokenUnstakeModule:
     tokens_per_user::TokensPerUserModule
     + unbond_tokens::UnbondTokensModule
@@ -41,4 +41,7 @@ pub trait TokenUnstakeModule:
         self.fees_collector_address().set(&fees_collector_address);
         self.fees_burn_percentage().set(fees_burn_percentage);
     }
+
+    #[endpoint]
+    fn upgrade(&self) {}
 }

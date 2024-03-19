@@ -3,8 +3,8 @@
 
 use proposal::ProposalCreationArgs;
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 pub mod config;
 pub mod errors;
@@ -18,7 +18,7 @@ use crate::errors::*;
 use crate::proposal::*;
 use crate::vote::*;
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait Governance:
     config::Config
     + validation::Validation
@@ -48,6 +48,9 @@ pub trait Governance:
         self.try_change_min_weight_for_proposal(min_weight_for_proposal);
         self.try_change_price_providers(price_providers);
     }
+
+    #[endpoint]
+    fn upgrade(&self) {}
 
     #[payable("*")]
     #[endpoint]

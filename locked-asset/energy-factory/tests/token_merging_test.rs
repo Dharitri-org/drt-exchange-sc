@@ -1,18 +1,7 @@
+#![allow(deprecated)]
+
 mod energy_factory_setup;
 
-use dharitri_wasm::{
-    dharitri_codec::multi_types::OptionalValue,
-    storage::mappers::StorageTokenWrapper,
-    types::{
-        BigInt, BigUint, MoaxOrDctTokenIdentifier, MoaxOrDctTokenPayment, DctLocalRole,
-        MultiValueEncoded,
-    },
-};
-use dharitri_wasm_debug::{
-    managed_address, managed_token_id, testing_framework::BlockchainStateWrapper,
-    tx_mock::TxInputDCT,
-};
-use dharitri_wasm_modules::pause::PauseModule;
 use energy_factory::{
     energy::{Energy, EnergyModule},
     token_merging::TokenMergingModule,
@@ -20,16 +9,29 @@ use energy_factory::{
     SimpleLockEnergy,
 };
 use energy_factory_setup::*;
+use dharitri_sc::{
+    codec::multi_types::OptionalValue,
+    storage::mappers::StorageTokenWrapper,
+    types::{
+        BigInt, BigUint, MoaxOrDctTokenIdentifier, MoaxOrDctTokenPayment, DctLocalRole,
+        MultiValueEncoded,
+    },
+};
+use dharitri_sc_modules::pause::PauseModule;
+use dharitri_sc_scenario::{
+    managed_address, managed_token_id, whitebox_legacy::BlockchainStateWrapper,
+    whitebox_legacy::TxTokenTransfer,
+};
 use simple_lock::{
     basic_lock_unlock::BasicLockUnlock,
     locked_token::{LockedTokenAttributes, LockedTokenModule},
 };
 
-use dharitri_wasm_debug::{managed_token_id_wrapped, rust_biguint, DebugApi};
+use dharitri_sc_scenario::{managed_token_id_wrapped, rust_biguint, DebugApi};
 
 #[test]
 fn token_merging_test() {
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
     let first_user = setup.first_user.clone();
 
@@ -56,12 +58,12 @@ fn token_merging_test() {
         .assert_ok();
 
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: rust_biguint!(400_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 2,
             value: rust_biguint!(100_000),
@@ -99,7 +101,7 @@ fn token_merging_test() {
 
 #[test]
 fn token_merging_different_years_test() {
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
     let first_user = setup.first_user.clone();
 
@@ -126,12 +128,12 @@ fn token_merging_different_years_test() {
         .assert_ok();
 
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: rust_biguint!(400_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 2,
             value: rust_biguint!(100_000),
@@ -169,7 +171,7 @@ fn token_merging_different_years_test() {
 
 #[test]
 fn token_merging_different_years2_test() {
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
     let first_user = setup.first_user.clone();
 
@@ -196,12 +198,12 @@ fn token_merging_different_years2_test() {
         .assert_ok();
 
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: rust_biguint!(400_000),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 2,
             value: rust_biguint!(100_000),
@@ -239,7 +241,7 @@ fn token_merging_different_years2_test() {
 
 #[test]
 fn test_specific_tokens_merge() {
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     let rust_zero = rust_biguint!(0u64);
     let mut b_mock = BlockchainStateWrapper::new();
     let owner = b_mock.create_user_account(&rust_zero);
@@ -337,12 +339,12 @@ fn test_specific_tokens_merge() {
     b_mock.set_block_epoch(2_695);
 
     let payments = [
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 1,
             value: first_balance.clone(),
         },
-        TxInputDCT {
+        TxTokenTransfer {
             token_identifier: LOCKED_TOKEN_ID.to_vec(),
             nonce: 2,
             value: second_balance.clone(),
@@ -363,6 +365,65 @@ fn test_specific_tokens_merge() {
             original_token_id: managed_token_id_wrapped!(BASE_ASSET_TOKEN_ID),
             original_token_nonce: 0,
             unlock_epoch: 4_110,
+        }),
+    );
+}
+
+#[test]
+fn merge_same_schedule_test() {
+    DebugApi::dummy();
+    let mut setup = SimpleLockEnergySetup::new(energy_factory::contract_obj);
+    let user = setup.first_user.clone();
+    let unlock_epoch = to_start_of_month(LOCK_OPTIONS[0]);
+
+    let first_token_amount = 400_000;
+    setup
+        .lock(
+            &user,
+            BASE_ASSET_TOKEN_ID,
+            first_token_amount,
+            LOCK_OPTIONS[0],
+        )
+        .assert_ok();
+
+    let second_token_amount = 100_000;
+    setup
+        .lock(
+            &user,
+            BASE_ASSET_TOKEN_ID,
+            second_token_amount,
+            LOCK_OPTIONS[0],
+        )
+        .assert_ok();
+
+    let payments = [
+        TxTokenTransfer {
+            token_identifier: LOCKED_TOKEN_ID.to_vec(),
+            nonce: 1,
+            value: rust_biguint!(400_000),
+        },
+        TxTokenTransfer {
+            token_identifier: LOCKED_TOKEN_ID.to_vec(),
+            nonce: 1,
+            value: rust_biguint!(100_000),
+        },
+    ];
+    setup
+        .b_mock
+        .execute_dct_multi_transfer(&user, &setup.sc_wrapper, &payments[..], |sc| {
+            let _ = sc.merge_tokens_endpoint(OptionalValue::None);
+        })
+        .assert_ok();
+
+    setup.b_mock.check_nft_balance(
+        &user,
+        LOCKED_TOKEN_ID,
+        1,
+        &rust_biguint!(first_token_amount + second_token_amount),
+        Some(&LockedTokenAttributes::<DebugApi> {
+            original_token_id: managed_token_id_wrapped!(BASE_ASSET_TOKEN_ID),
+            original_token_nonce: 0,
+            unlock_epoch,
         }),
     );
 }

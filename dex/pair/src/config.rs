@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use pausable::State;
 
@@ -8,7 +8,7 @@ use super::errors::*;
 pub const MAX_PERCENTAGE: u64 = 100_000;
 pub const MAX_FEE_PERCENTAGE: u64 = 5_000;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait ConfigModule:
     token_send::TokenSendModule + permissions_module::PermissionsModule + pausable::PausableModule
 {

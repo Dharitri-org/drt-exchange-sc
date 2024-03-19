@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use crate::error_messages::*;
 
@@ -22,10 +22,10 @@ pub struct RemoveLiquidityResultWrapper<M: ManagedTypeApi> {
 // Must manually declare, as Pair SC already depends on simple-lock
 // This avoids circular dependency
 mod lp_proxy {
-    dharitri_wasm::imports!();
+    dharitri_sc::imports!();
     use super::{AddLiquidityResultType, RemoveLiquidityResultType};
 
-    #[dharitri_wasm::proxy]
+    #[dharitri_sc::proxy]
     pub trait LpProxy {
         #[payable("*")]
         #[endpoint(addLiquidity)]
@@ -45,7 +45,7 @@ mod lp_proxy {
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait LpInteractionsModule {
     fn call_pair_add_liquidity(
         &self,
@@ -107,7 +107,7 @@ pub trait LpInteractionsModule {
         let lp_payments_out: RemoveLiquidityResultType<Self::Api> = self
             .lp_proxy(lp_address)
             .remove_liquidity(first_token_amount_min, second_token_amount_min)
-            .add_dct_token_transfer(lp_token_id, 0, lp_token_amount)
+            .with_dct_transfer((lp_token_id, 0, lp_token_amount))
             .execute_on_dest_context();
 
         let (first_token_payment_out, second_token_payment_out) = lp_payments_out.into_tuple();

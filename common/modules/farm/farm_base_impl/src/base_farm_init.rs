@@ -1,16 +1,16 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-use common_errors::{ERROR_NOT_AN_DCT, ERROR_SAME_TOKEN_IDS, ERROR_ZERO_AMOUNT};
+use common_errors::{ERROR_NOT_AN_DCT, ERROR_ZERO_AMOUNT};
 use pausable::State;
 use permissions_module::Permissions;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait BaseFarmInitModule:
     config::ConfigModule
     + farm_token::FarmTokenModule
     + permissions_module::PermissionsModule
     + pausable::PausableModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
 {
     fn base_farm_init(
         &self,
@@ -29,10 +29,6 @@ pub trait BaseFarmInitModule:
             ERROR_NOT_AN_DCT
         );
         require!(division_safety_constant != 0u64, ERROR_ZERO_AMOUNT);
-
-        let farm_token = self.farm_token().get_token_id();
-        require!(reward_token_id != farm_token, ERROR_SAME_TOKEN_IDS);
-        require!(farming_token_id != farm_token, ERROR_SAME_TOKEN_IDS);
 
         self.state().set(State::Inactive);
         self.division_safety_constant()

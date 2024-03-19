@@ -1,53 +1,43 @@
-dharitri_wasm::imports!();
-
-use core::mem::swap;
+dharitri_sc::imports!();
 
 use farm::{
-    base_functions::{ClaimRewardsResultType, ExitFarmResultType},
-    ProxyTrait as _,
+    base_functions::{ClaimRewardsResultType, DoubleMultiPayment},
+    EnterFarmResultType, ExitFarmWithPartialPosResultType,
 };
 use farm_staking::{
     claim_stake_farm_rewards::ProxyTrait as _, stake_farm::ProxyTrait as _,
     unstake_farm::ProxyTrait as _,
 };
-use pair::safe_price::ProxyTrait as _;
+use farm_with_locked_rewards::ProxyTrait as _;
+use pair::{
+    pair_actions::{common_result_types::RemoveLiquidityResultType, remove_liq::ProxyTrait as _},
+    safe_price_view::ProxyTrait as _,
+};
 
 use crate::result_types::*;
-use pair::RemoveLiquidityResultType;
 
 pub type SafePriceResult<Api> = MultiValue2<DctTokenPayment<Api>, DctTokenPayment<Api>>;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait ExternalContractsInteractionsModule:
-    crate::lp_farm_token::LpFarmTokenModule + token_merge_helper::TokenMergeHelperModule
+    crate::lp_farm_token::LpFarmTokenModule + utils::UtilsModule + energy_query::EnergyQueryModule
 {
     // lp farm
 
     fn lp_farm_claim_rewards(
         &self,
+        orig_caller: ManagedAddress,
         lp_farm_token_id: TokenIdentifier,
         lp_farm_token_nonce: u64,
         lp_farm_token_amount: BigUint,
     ) -> LpFarmClaimRewardsResult<Self::Api> {
-        let orig_caller = self.blockchain().get_caller();
         let lp_farm_address = self.lp_farm_address().get();
         let lp_farm_result: ClaimRewardsResultType<Self::Api> = self
             .lp_farm_proxy_obj(lp_farm_address)
             .claim_rewards_endpoint(orig_caller)
-            .add_dct_token_transfer(
-                lp_farm_token_id.clone(),
-                lp_farm_token_nonce,
-                lp_farm_token_amount,
-            )
+            .with_dct_transfer((lp_farm_token_id, lp_farm_token_nonce, lp_farm_token_amount))
             .execute_on_dest_context();
-        let (mut new_lp_farm_tokens, mut lp_farm_rewards) = lp_farm_result.into_tuple();
-
-        self.swap_payments_if_wrong_order(
-            &mut new_lp_farm_tokens,
-            &mut lp_farm_rewards,
-            &lp_farm_token_id,
-            b"lp_farm_claim_rewards",
-        );
+        let (new_lp_farm_tokens, lp_farm_rewards) = lp_farm_result.into_tuple();
 
         LpFarmClaimRewardsResult {
             new_lp_farm_tokens,
@@ -57,27 +47,18 @@ pub trait ExternalContractsInteractionsModule:
 
     fn lp_farm_exit(
         &self,
+        orig_caller: ManagedAddress,
         lp_farm_token_nonce: u64,
         lp_farm_token_amount: BigUint,
-        exit_amount: BigUint,
     ) -> LpFarmExitResult<Self::Api> {
-        let orig_caller = self.blockchain().get_caller();
         let lp_farm_token_id = self.lp_farm_token_id().get();
         let lp_farm_address = self.lp_farm_address().get();
-        let exit_farm_result: ExitFarmResultType<Self::Api> = self
+        let exit_farm_result: ExitFarmWithPartialPosResultType<Self::Api> = self
             .lp_farm_proxy_obj(lp_farm_address)
-            .exit_farm_endpoint(exit_amount, orig_caller)
-            .add_dct_token_transfer(lp_farm_token_id, lp_farm_token_nonce, lp_farm_token_amount)
+            .exit_farm_endpoint(orig_caller)
+            .with_dct_transfer((lp_farm_token_id, lp_farm_token_nonce, lp_farm_token_amount))
             .execute_on_dest_context();
-        let (mut lp_tokens, mut lp_farm_rewards) = exit_farm_result.into_tuple();
-        let expected_lp_token_id = self.lp_token_id().get();
-
-        self.swap_payments_if_wrong_order(
-            &mut lp_tokens,
-            &mut lp_farm_rewards,
-            &expected_lp_token_id,
-            b"lp_farm_exit",
-        );
+        let (lp_tokens, lp_farm_rewards) = exit_farm_result.into_tuple();
 
         LpFarmExitResult {
             lp_tokens,
@@ -87,20 +68,22 @@ pub trait ExternalContractsInteractionsModule:
 
     fn merge_lp_farm_tokens(
         &self,
-        caller: ManagedAddress,
-        base_lp_token: DctTokenPayment<Self::Api>,
-        mut additional_lp_tokens: ManagedVec<DctTokenPayment<Self::Api>>,
-    ) -> DctTokenPayment<Self::Api> {
-        if additional_lp_tokens.is_empty() {
-            return base_lp_token;
+        orig_caller: ManagedAddress,
+        base_lp_farm_token: DctTokenPayment,
+        mut additional_lp_farm_tokens: PaymentsVec<Self::Api>,
+    ) -> DoubleMultiPayment<Self::Api> {
+        if additional_lp_farm_tokens.is_empty() {
+            let locked_token_id = self.get_locked_token_id();
+            let rewards_payment = DctTokenPayment::new(locked_token_id, 0, BigUint::zero());
+            return (base_lp_farm_token, rewards_payment).into();
         }
 
-        additional_lp_tokens.push(base_lp_token);
+        additional_lp_farm_tokens.push(base_lp_farm_token);
 
         let lp_farm_address = self.lp_farm_address().get();
         self.lp_farm_proxy_obj(lp_farm_address)
-            .merge_farm_tokens_endpoint(OptionalValue::Some(caller))
-            .with_multi_token_transfer(additional_lp_tokens)
+            .merge_farm_tokens_endpoint(orig_caller)
+            .with_multi_token_transfer(additional_lp_farm_tokens)
             .execute_on_dest_context()
     }
 
@@ -108,23 +91,27 @@ pub trait ExternalContractsInteractionsModule:
 
     fn staking_farm_enter(
         &self,
+        orig_caller: ManagedAddress,
         staking_token_amount: BigUint,
         staking_farm_tokens: PaymentsVec<Self::Api>,
     ) -> StakingFarmEnterResult<Self::Api> {
         let staking_farm_address = self.staking_farm_address().get();
-        let received_staking_farm_token: DctTokenPayment = self
+        let enter_result: EnterFarmResultType<Self::Api> = self
             .staking_farm_proxy_obj(staking_farm_address)
-            .stake_farm_through_proxy(staking_token_amount)
+            .stake_farm_through_proxy(staking_token_amount, orig_caller)
             .with_multi_token_transfer(staking_farm_tokens)
             .execute_on_dest_context();
+        let (received_staking_farm_token, boosted_rewards) = enter_result.into_tuple();
 
         StakingFarmEnterResult {
             received_staking_farm_token,
+            boosted_rewards,
         }
     }
 
     fn staking_farm_claim_rewards(
         &self,
+        orig_caller: ManagedAddress,
         staking_farm_token_id: TokenIdentifier,
         staking_farm_token_nonce: u64,
         staking_farm_token_amount: BigUint,
@@ -133,22 +120,14 @@ pub trait ExternalContractsInteractionsModule:
         let staking_farm_address = self.staking_farm_address().get();
         let staking_farm_result: ClaimRewardsResultType<Self::Api> = self
             .staking_farm_proxy_obj(staking_farm_address)
-            .claim_rewards_with_new_value(new_staking_farm_value)
-            .add_dct_token_transfer(
-                staking_farm_token_id.clone(),
+            .claim_rewards_with_new_value(new_staking_farm_value, orig_caller)
+            .with_dct_transfer((
+                staking_farm_token_id,
                 staking_farm_token_nonce,
                 staking_farm_token_amount,
-            )
+            ))
             .execute_on_dest_context();
-        let (mut new_staking_farm_tokens, mut staking_farm_rewards) =
-            staking_farm_result.into_tuple();
-
-        self.swap_payments_if_wrong_order(
-            &mut new_staking_farm_tokens,
-            &mut staking_farm_rewards,
-            &staking_farm_token_id,
-            b"staking_farm_claim_rewards",
-        );
+        let (new_staking_farm_tokens, staking_farm_rewards) = staking_farm_result.into_tuple();
 
         StakingFarmClaimRewardsResult {
             new_staking_farm_tokens,
@@ -158,6 +137,7 @@ pub trait ExternalContractsInteractionsModule:
 
     fn staking_farm_unstake(
         &self,
+        orig_caller: ManagedAddress,
         staking_tokens: DctTokenPayment<Self::Api>,
         farm_token_nonce: u64,
         farm_token_amount: BigUint,
@@ -165,25 +145,18 @@ pub trait ExternalContractsInteractionsModule:
         let staking_farm_token_id = self.staking_farm_token_id().get();
         let mut payments = ManagedVec::from_single_item(staking_tokens);
         payments.push(DctTokenPayment::new(
-            staking_farm_token_id.clone(),
+            staking_farm_token_id,
             farm_token_nonce,
             farm_token_amount,
         ));
 
         let staking_farm_address = self.staking_farm_address().get();
-        let unstake_result: ExitFarmResultType<Self::Api> = self
+        let unstake_result: ExitFarmWithPartialPosResultType<Self::Api> = self
             .staking_farm_proxy_obj(staking_farm_address)
-            .unstake_farm_through_proxy()
+            .unstake_farm_through_proxy(orig_caller)
             .with_multi_token_transfer(payments)
             .execute_on_dest_context();
-        let (mut unbond_staking_farm_token, mut staking_rewards) = unstake_result.into_tuple();
-
-        self.swap_payments_if_wrong_order(
-            &mut unbond_staking_farm_token,
-            &mut staking_rewards,
-            &staking_farm_token_id,
-            b"staking_farm_unstake",
-        );
+        let (unbond_staking_farm_token, staking_rewards) = unstake_result.into_tuple();
 
         StakingFarmExitResult {
             unbond_staking_farm_token,
@@ -203,11 +176,7 @@ pub trait ExternalContractsInteractionsModule:
         let pair_withdraw_result: RemoveLiquidityResultType<Self::Api> = self
             .pair_proxy_obj(pair_address)
             .remove_liquidity(pair_first_token_min_amount, pair_second_token_min_amount)
-            .add_dct_token_transfer(
-                lp_tokens.token_identifier,
-                lp_tokens.token_nonce,
-                lp_tokens.amount,
-            )
+            .with_dct_transfer(lp_tokens)
             .execute_on_dest_context();
         let (pair_first_token_payment, pair_second_token_payment) =
             pair_withdraw_result.into_tuple();
@@ -246,32 +215,16 @@ pub trait ExternalContractsInteractionsModule:
         }
     }
 
-    fn swap_payments_if_wrong_order(
-        &self,
-        first_payment: &mut DctTokenPayment<Self::Api>,
-        second_payment: &mut DctTokenPayment<Self::Api>,
-        expected_first_payment_id: &TokenIdentifier,
-        called_function_name: &[u8],
-    ) {
-        if &first_payment.token_identifier != expected_first_payment_id {
-            if &second_payment.token_identifier == expected_first_payment_id {
-                swap(first_payment, second_payment);
-            } else {
-                sc_panic!(
-                    "Invalid tokens received on {}",
-                    ManagedBuffer::new_from_bytes(called_function_name)
-                );
-            }
-        }
-    }
-
     // proxies
 
     #[proxy]
     fn staking_farm_proxy_obj(&self, sc_address: ManagedAddress) -> farm_staking::Proxy<Self::Api>;
 
     #[proxy]
-    fn lp_farm_proxy_obj(&self, sc_address: ManagedAddress) -> farm::Proxy<Self::Api>;
+    fn lp_farm_proxy_obj(
+        &self,
+        sc_address: ManagedAddress,
+    ) -> farm_with_locked_rewards::Proxy<Self::Api>;
 
     #[proxy]
     fn pair_proxy_obj(&self, sc_address: ManagedAddress) -> pair::Proxy<Self::Api>;

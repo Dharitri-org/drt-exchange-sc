@@ -1,9 +1,11 @@
-use dharitri_wasm::dharitri_codec::multi_types::OptionalValue;
-use dharitri_wasm::types::DctLocalRole;
-use dharitri_wasm_debug::{managed_biguint, managed_token_id_wrapped, testing_framework::*};
-use dharitri_wasm_debug::{managed_token_id, rust_biguint, DebugApi};
+#![allow(deprecated)]
 
-use dharitri_wasm::storage::mappers::StorageTokenWrapper;
+use dharitri_sc::codec::multi_types::OptionalValue;
+use dharitri_sc::types::DctLocalRole;
+use dharitri_sc_scenario::{managed_biguint, managed_token_id_wrapped, whitebox_legacy::*};
+use dharitri_sc_scenario::{managed_token_id, rust_biguint, DebugApi};
+
+use dharitri_sc::storage::mappers::StorageTokenWrapper;
 use simple_lock::locked_token::*;
 use simple_lock::SimpleLock;
 
@@ -64,7 +66,7 @@ fn lock_unlock_test() {
         .assert_ok();
 
     // needed for the managed types in LockedTokenAttributes
-    let _ = DebugApi::dummy();
+    DebugApi::dummy();
     b_mock.check_nft_balance(
         &user_addr,
         LOCKED_TOKEN_ID,

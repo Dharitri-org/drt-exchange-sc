@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 #[derive(TypeAbi, TopEncode, TopDecode, NestedEncode, PartialEq)]
 pub enum Phase<M: ManagedTypeApi> {
@@ -20,7 +20,7 @@ impl<M: ManagedTypeApi> Phase<M> {
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait PhaseModule:
     crate::common_storage::CommonStorageModule + crate::events::EventsModule
 {

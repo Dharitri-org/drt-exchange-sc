@@ -1,15 +1,15 @@
 [package]
 name = "common_structs"
 version = "0.0.0"
-authors = [ "catalin-neagu <catalin.neagu@dharitri.com>",]
-edition = "2018"
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/lib.rs"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]
 
 [dependencies.mergeable]
 path = "../traits/mergeable"

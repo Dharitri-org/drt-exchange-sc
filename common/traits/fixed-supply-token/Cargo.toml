@@ -1,11 +1,11 @@
 [package]
 name = "fixed-supply-token"
 version = "0.0.0"
-authors = [ "Dorin Iancu <dorin.iancu@dharitri.com>" ]
-edition = "2018"
+authors = ["Dorin Iancu <dorin.iancu@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/lib.rs"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
+[dependencies.dharitri-sc]
+version = "=0.13.6"

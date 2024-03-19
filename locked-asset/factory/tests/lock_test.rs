@@ -1,18 +1,20 @@
+#![allow(deprecated)]
+
 use common_structs::{
     LockedAssetTokenAttributesEx, UnlockMilestone, UnlockMilestoneEx, UnlockScheduleEx,
 };
-use dharitri_wasm::{
+use dharitri_sc::{
     storage::mappers::StorageTokenWrapper,
     types::{DctLocalRole, ManagedVec, MultiValueEncoded},
 };
-use dharitri_wasm_debug::{
-    managed_biguint, managed_token_id, rust_biguint, testing_framework::*, DebugApi,
+use dharitri_sc_scenario::{
+    managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::*, DebugApi,
 };
 
 const SC_WASM_PATH: &str = "output/factory.wasm";
 
-use dharitri_wasm_modules::pause::PauseModule;
 use factory::{locked_asset::LockedAssetModule, LockedAssetFactory};
+use dharitri_sc_modules::pause::PauseModule;
 
 const ASSET_TOKEN_ID: &[u8] = b"MEX-123456";
 const LOCKED_ASSET_TOKEN_ID: &[u8] = b"LKMEX-123456";

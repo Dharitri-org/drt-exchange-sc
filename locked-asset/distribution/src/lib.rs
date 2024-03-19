@@ -3,8 +3,8 @@
 
 use common_structs::{UnlockMilestone, UnlockPeriod};
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 mod global_op;
 
@@ -30,7 +30,7 @@ pub struct CommunityDistribution<M: ManagedTypeApi> {
     pub after_planning_amount: BigUint<M>,
 }
 
-#[dharitri_wasm::contract]
+#[dharitri_sc::contract]
 pub trait Distribution: global_op::GlobalOperationModule {
     #[proxy]
     fn locked_asset_factory_proxy(&self, to: ManagedAddress) -> factory::Proxy<Self::Api>;
@@ -46,6 +46,9 @@ pub trait Distribution: global_op::GlobalOperationModule {
         self.locked_asset_factory_address()
             .set_if_empty(&locked_asset_factory_address);
     }
+
+    #[endpoint]
+    fn upgrade(&self) {}
 
     #[only_owner]
     #[endpoint(setCommunityDistribution)]

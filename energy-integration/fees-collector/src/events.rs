@@ -1,8 +1,8 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use common_types::Week;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait FeesCollectorEventsModule {
     fn emit_deposit_swap_fees_event(
         self,

@@ -1,9 +1,9 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
+
+use pair::pair_actions::swap::ProxyTrait as _;
 
 use super::factory;
-
-use pair::ProxyTrait as _;
 
 type SwapOperationType<M> =
     MultiValue4<ManagedAddress<M>, ManagedBuffer<M>, TokenIdentifier<M>, BigUint<M>>;
@@ -11,7 +11,7 @@ type SwapOperationType<M> =
 pub const SWAP_TOKENS_FIXED_INPUT_FUNC_NAME: &[u8] = b"swapTokensFixedInput";
 pub const SWAP_TOKENS_FIXED_OUTPUT_FUNC_NAME: &[u8] = b"swapTokensFixedOutput";
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait MultiPairSwap: factory::FactoryModule + token_send::TokenSendModule {
     #[payable("*")]
     #[endpoint(multiPairSwap)]
@@ -73,7 +73,7 @@ pub trait MultiPairSwap: factory::FactoryModule + token_send::TokenSendModule {
     ) -> DctTokenPayment<Self::Api> {
         self.pair_contract_proxy(pair_address)
             .swap_tokens_fixed_input(token_out, amount_out_min)
-            .add_dct_token_transfer(token_in, 0, amount_in)
+            .with_dct_transfer((token_in, 0, amount_in))
             .execute_on_dest_context()
     }
 
@@ -88,7 +88,7 @@ pub trait MultiPairSwap: factory::FactoryModule + token_send::TokenSendModule {
         let call_result: MultiValue2<DctTokenPayment<Self::Api>, DctTokenPayment<Self::Api>> =
             self.pair_contract_proxy(pair_address)
                 .swap_tokens_fixed_output(token_out, amount_out)
-                .add_dct_token_transfer(token_in, 0, amount_in_max)
+                .with_dct_transfer((token_in, 0, amount_in_max))
                 .execute_on_dest_context();
 
         call_result.into_tuple()

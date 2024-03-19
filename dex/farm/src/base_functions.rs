@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::from_over_into)]
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use core::marker::PhantomData;
 
@@ -18,6 +18,8 @@ use crate::exit_penalty;
 pub type DoubleMultiPayment<M> = MultiValue2<DctTokenPayment<M>, DctTokenPayment<M>>;
 pub type ClaimRewardsResultType<M> = DoubleMultiPayment<M>;
 pub type ExitFarmResultType<M> = DoubleMultiPayment<M>;
+
+pub const DEFAULT_FARM_POSITION_MIGRATION_NONCE: u64 = 1;
 
 pub struct ClaimRewardsResultWrapper<M: ManagedTypeApi> {
     pub new_farm_token: DctTokenPayment<M>,
@@ -41,7 +43,7 @@ impl<M: ManagedTypeApi> Into<ExitFarmResultType<M>> for ExitFarmResultWrapper<M>
     }
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait BaseFunctionsModule:
     rewards::RewardsModule
     + config::ConfigModule
@@ -50,7 +52,7 @@ pub trait BaseFunctionsModule:
     + pausable::PausableModule
     + permissions_module::PermissionsModule
     + events::EventsModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + exit_penalty::ExitPenaltyModule
     + farm_base_impl::base_farm_init::BaseFarmInitModule
     + farm_base_impl::base_farm_validation::BaseFarmValidationModule
@@ -73,7 +75,7 @@ pub trait BaseFunctionsModule:
         &self,
         caller: ManagedAddress,
     ) -> DctTokenPayment {
-        let payments = self.call_value().all_dct_transfers();
+        let payments = self.call_value().all_dct_transfers().clone_value();
         let base_enter_farm_result = self.enter_farm_base::<FC>(caller.clone(), payments);
 
         self.set_farm_supply_for_current_week(
@@ -95,7 +97,7 @@ pub trait BaseFunctionsModule:
         &self,
         caller: ManagedAddress,
     ) -> ClaimRewardsResultWrapper<Self::Api> {
-        let payments = self.call_value().all_dct_transfers();
+        let payments = self.call_value().all_dct_transfers().clone_value();
         let base_claim_rewards_result = self.claim_rewards_base::<FC>(caller.clone(), payments);
 
         let output_farm_token_payment = base_claim_rewards_result.new_farm_token.payment.clone();
@@ -124,7 +126,7 @@ pub trait BaseFunctionsModule:
         &self,
         caller: ManagedAddress,
     ) -> DctTokenPayment<Self::Api> {
-        let payments = self.call_value().all_dct_transfers();
+        let payments = self.call_value().all_dct_transfers().clone_value();
         let base_compound_rewards_result =
             self.compound_rewards_base::<FC>(caller.clone(), payments);
 
@@ -186,10 +188,55 @@ pub trait BaseFunctionsModule:
         let token_mapper = self.farm_token();
         token_mapper.require_all_same_token(&payments);
 
+        let caller = self.blockchain().get_caller();
+        FC::check_and_update_user_farm_position(self, &caller, &payments);
+
         let output_attributes: FC::AttributesType =
             self.merge_from_payments_and_burn(payments, &token_mapper);
         let new_token_amount = output_attributes.get_total_supply();
         token_mapper.nft_create(new_token_amount, &output_attributes)
+    }
+
+    fn claim_only_boosted_payment(&self, caller: &ManagedAddress) -> BigUint {
+        let reward = Wrapper::<Self>::calculate_boosted_rewards(self, caller);
+        if reward > 0 {
+            self.reward_reserve().update(|reserve| *reserve -= &reward);
+        }
+
+        reward
+    }
+
+    fn migrate_old_farm_positions(&self, caller: &ManagedAddress) -> BigUint {
+        let payments = self.get_non_empty_payments();
+        let farm_token_mapper = self.farm_token();
+        let farm_token_id = farm_token_mapper.get_token_id();
+        let mut migrated_amount = BigUint::zero();
+        for farm_position in &payments {
+            if farm_position.token_identifier == farm_token_id
+                && self.is_old_farm_position(farm_position.token_nonce)
+            {
+                migrated_amount += farm_position.amount;
+            }
+        }
+
+        if migrated_amount > 0 {
+            let mut user_total_farm_position = self.get_user_total_farm_position(caller);
+            user_total_farm_position.total_farm_position += &migrated_amount;
+            self.user_total_farm_position(caller)
+                .set(user_total_farm_position);
+        }
+
+        migrated_amount
+    }
+
+    fn decrease_old_farm_positions(&self, migrated_amount: BigUint, caller: &ManagedAddress) {
+        if migrated_amount == BigUint::zero() {
+            return;
+        }
+        self.user_total_farm_position(caller)
+            .update(|user_total_farm_position| {
+                user_total_farm_position.total_farm_position -= migrated_amount;
+            });
     }
 
     fn end_produce_rewards<FC: FarmContract<FarmSc = Self>>(&self) {
@@ -206,11 +253,6 @@ pub trait BaseFunctionsModule:
         FC::generate_aggregated_rewards(self, &mut storage);
 
         self.per_block_reward_amount().set(&per_block_amount);
-    }
-
-    fn set_farm_supply_for_current_week(&self, farm_supply: &BigUint) {
-        let current_week = self.get_current_week();
-        self.farm_supply_for_week(current_week).set(farm_supply);
     }
 
     fn require_queried(&self) {
@@ -240,16 +282,11 @@ where
     pub fn calculate_boosted_rewards(
         sc: &<Self as FarmContract>::FarmSc,
         caller: &ManagedAddress<<<Self as FarmContract>::FarmSc as ContractBase>::Api>,
-        token_attributes: &<Self as FarmContract>::AttributesType,
-        farm_token_amount: BigUint<<<Self as FarmContract>::FarmSc as ContractBase>::Api>,
     ) -> BigUint<<<Self as FarmContract>::FarmSc as ContractBase>::Api> {
-        if &token_attributes.original_owner != caller {
-            sc.update_energy_and_progress(caller);
+        let user_total_farm_position = sc.get_user_total_farm_position(caller);
+        let user_farm_position = user_total_farm_position.total_farm_position;
 
-            return BigUint::zero();
-        }
-
-        sc.claim_boosted_yields_rewards(caller, farm_token_amount)
+        sc.claim_boosted_yields_rewards(caller, user_farm_position)
     }
 }
 
@@ -293,12 +330,7 @@ where
             token_attributes,
             storage_cache,
         );
-        let boosted_yield_rewards = Self::calculate_boosted_rewards(
-            sc,
-            caller,
-            token_attributes,
-            farm_token_amount.clone(),
-        );
+        let boosted_yield_rewards = Self::calculate_boosted_rewards(sc, caller);
 
         base_farm_reward + boosted_yield_rewards
     }

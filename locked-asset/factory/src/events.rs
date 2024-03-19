@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use common_structs::LockedAssetTokenAttributesEx;
 
@@ -35,7 +35,7 @@ pub struct UnlockAssetsEvent<M: ManagedTypeApi> {
     timestamp: u64,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait EventsModule {
     fn emit_create_and_forward_event(
         self,

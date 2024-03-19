@@ -1,15 +1,13 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
-
-use dharitri_codec::TopEncode;
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 const INITIAL_SFT_AMOUNT: u32 = 1;
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait TokenAttributesModule {
     fn get_or_create_nonce_for_attributes<T: TopEncode + NestedEncode>(
         &self,
-        nft_mapper: &NonFungibleTokenMapper<Self::Api>,
+        nft_mapper: &NonFungibleTokenMapper,
         token_name: &ManagedBuffer,
         attributes: &T,
     ) -> u64 {

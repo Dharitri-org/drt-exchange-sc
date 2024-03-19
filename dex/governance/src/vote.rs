@@ -1,5 +1,5 @@
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 use crate::config;
 
@@ -18,7 +18,7 @@ pub struct VoteNFTAttributes<M: ManagedTypeApi> {
     pub payment: DctTokenPayment<M>,
 }
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait VoteHelper: config::Config {
     fn create_vote_nft(
         &self,

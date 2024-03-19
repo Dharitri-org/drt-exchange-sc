@@ -1,17 +1,18 @@
+#![allow(deprecated)]
+
 use common_structs::{
     LockedAssetTokenAttributesEx, UnlockMilestone, UnlockMilestoneEx, UnlockScheduleEx,
 };
-use dharitri_wasm::storage::mappers::StorageTokenWrapper;
-use dharitri_wasm::types::{Address, DctLocalRole, ManagedVec};
-use dharitri_wasm_debug::tx_mock::{TxInputDCT, TxResult};
-use dharitri_wasm_debug::{
-    managed_address, managed_biguint, managed_token_id, rust_biguint, testing_framework::*,
-    DebugApi,
-};
-use dharitri_wasm_modules::pause::PauseModule;
 use factory::locked_asset::LockedAssetModule;
 use factory::*;
 use metabonding_staking::MetabondingStaking;
+use dharitri_sc::storage::mappers::StorageTokenWrapper;
+use dharitri_sc::types::{Address, DctLocalRole, ManagedVec};
+use dharitri_sc_modules::pause::PauseModule;
+use dharitri_sc_scenario::whitebox_legacy::{TxResult, TxTokenTransfer};
+use dharitri_sc_scenario::{
+    managed_address, managed_biguint, managed_token_id, rust_biguint, whitebox_legacy::*, DebugApi,
+};
 
 pub const METABONDING_STAKING_WASM_PATH: &str = "1.wasm";
 pub const LOCKED_ASSET_FACTORY_WASM_PATH: &str = "2.wasm";
@@ -46,7 +47,7 @@ where
         mbs_builder: MetabondingStakingObjBuilder,
         laf_builder: LockedAssetFactoryObjBuilder,
     ) -> Self {
-        let _ = DebugApi::dummy();
+        DebugApi::dummy();
 
         let rust_zero = rust_biguint!(0u64);
         let mut b_mock = BlockchainStateWrapper::new();
@@ -215,7 +216,7 @@ where
         )
     }
 
-    pub fn call_stake_locked_asset_multiple(&mut self, payments: &[TxInputDCT]) -> TxResult {
+    pub fn call_stake_locked_asset_multiple(&mut self, payments: &[TxTokenTransfer]) -> TxResult {
         self.b_mock.execute_dct_multi_transfer(
             &self.user_address,
             &self.mbs_wrapper,

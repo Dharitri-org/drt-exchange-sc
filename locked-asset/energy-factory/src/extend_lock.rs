@@ -1,4 +1,4 @@
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
 use common_structs::Epoch;
 use simple_lock::locked_token::LockedTokenAttributes;
@@ -8,19 +8,20 @@ use crate::energy::Energy;
 static INVALID_EXTEND_PERIOD_ARG_ERR_MSG: &[u8] =
     b"New lock period must be longer than the current one";
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait ExtendLockModule:
     simple_lock::basic_lock_unlock::BasicLockUnlock
     + simple_lock::locked_token::LockedTokenModule
     + simple_lock::token_attributes::TokenAttributesModule
-    + dharitri_wasm_modules::default_issue_callbacks::DefaultIssueCallbacksModule
+    + dharitri_sc_modules::default_issue_callbacks::DefaultIssueCallbacksModule
     + crate::token_whitelist::TokenWhitelistModule
     + crate::energy::EnergyModule
     + crate::lock_options::LockOptionsModule
     + crate::events::EventsModule
     + crate::migration::SimpleLockMigrationModule
-    + dharitri_wasm_modules::pause::PauseModule
+    + dharitri_sc_modules::pause::PauseModule
     + utils::UtilsModule
+    + legacy_token_decode_module::LegacyTokenDecodeModule
 {
     fn lock_by_token_type(
         &self,

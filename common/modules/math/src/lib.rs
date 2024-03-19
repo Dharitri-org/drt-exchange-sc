@@ -1,7 +1,7 @@
 #![no_std]
 
-dharitri_wasm::imports!();
-dharitri_wasm::derive_imports!();
+dharitri_sc::imports!();
+dharitri_sc::derive_imports!();
 
 /// out = (min_out * (max_in - current_in) + max_out * (current_in - min_in)) / (max_in - min_in)
 /// https://en.wikipedia.org/wiki/Linear_interpolation

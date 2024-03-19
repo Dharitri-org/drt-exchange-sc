@@ -1,8 +1,8 @@
 use crate::events;
 
-dharitri_wasm::imports!();
+dharitri_sc::imports!();
 
-#[dharitri_wasm::module]
+#[dharitri_sc::module]
 pub trait UnbondTokensModule:
     crate::tokens_per_user::TokensPerUserModule
     + crate::fees_handler::FeesHandlerModule

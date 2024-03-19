@@ -1,8 +1,8 @@
 [package]
 name = "pause-all"
 version = "0.0.0"
-authors = [ "you",]
-edition = "2018"
+authors = ["Dharitri <contact@dharitri.com>"]
+edition = "2021"
 publish = false
 
 [lib]
@@ -11,15 +11,15 @@ path = "src/lib.rs"
 [dependencies.pausable]
 path = "../common/modules/pausable"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]
 
-[dependencies.dharitri-wasm-modules]
-version = "=0.10.6"
+[dependencies.dharitri-sc-modules]
+version = "=0.13.6"
 
-[dev-dependencies.dharitri-wasm-debug]
-version = "=0.10.6"
+[dev-dependencies.dharitri-sc-scenario]
+version = "=0.13.6"
 
 [dev-dependencies.farm]
 path = "../dex/farm"

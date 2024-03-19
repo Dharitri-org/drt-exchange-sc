@@ -1,18 +1,22 @@
 [package]
 name = "fuzz"
 version = "0.0.0"
-authors = [ "sorin-petreasca <sorin.petreasca@dharitri.com>",]
-edition = "2018"
+authors = ["sorin-petreasca <sorin.petreasca@dharitri.com>"]
+edition = "2021"
 
 [lib]
 path = "src/lib.rs"
 
-[dependencies.dharitri-wasm]
-version = "=0.10.6"
-features = ["dct-token-payment-legacy-decode",]
+[dependencies]
+num-bigint = "0.4.2"
+rand = "0.8.4"
 
-[dependencies.dharitri-wasm-debug]
-version = "=0.10.6"
+[dependencies.dharitri-sc]
+version = "=0.13.6"
+features = ["dct-token-payment-legacy-decode"]
+
+[dependencies.dharitri-sc-scenario]
+version = "=0.13.6"
 
 [dependencies.pausable]
 path = "../../common/modules/pausable"
@@ -52,7 +56,3 @@ path = "../pair"
 
 [dependencies.router]
 path = "../router"
-
-[dependencies]
-num-bigint = "0.4.2"
-rand = "0.8.4"
