@@ -1,9 +1,9 @@
 dharitri_sc::imports!();
 dharitri_sc::derive_imports!();
 
-use pair::pair_actions::swap::ProxyTrait as _;
-
 use super::factory;
+
+use pair::ProxyTrait as _;
 
 type SwapOperationType<M> =
     MultiValue4<ManagedAddress<M>, ManagedBuffer<M>, TokenIdentifier<M>, BigUint<M>>;
